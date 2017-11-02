@@ -3,7 +3,7 @@
 ## Getting Started
 This project gives you the ability to perform 2D structural analysis on frame/truss/beam structures using Visual Basic for Applications within Microsoft Excel. To get started, download and import the '.bas' and '.cls' files into your VBA project tree in the Visual Basic Editor built into Excel.
 
-A FEModel class module has been provided to do all the heavy lifting of coordinating between the other modules. This is the only class you need to worry about to access to build, analyze, and get results from your finite element model. You can start by instantiating a new instance of the FEModel class using a statement such as:
+A FEModel class module has been provided to do all the heavy lifting of coordinating between the other modules. Once you've imported all the files into your project, the FEModel class is all you need to work with to build, analyze, and get results from your finite element model. You can start by instantiating a new instance of the FEModel class using a statement such as:
 
     'Beginning a new 2D finite element model
     Dim myModel as New FEModel
