@@ -16,7 +16,7 @@ From there you can access all the functions and properties you need to run a 2D 
 The VBA editor's intellisense will guide you along.
 
 ## More Documentation to Come
-I plan to improve the documentation in the future. If you need further help you can run the subroutines in the "TestRoutines" module. These are textbook examples I have run to validate the code is executing correctly.
+I plan to improve the documentation in the future. If you need further help you can review and/or run the subroutines in the "TestRoutines" module. These are textbook examples I have run to validate the code is executing correctly.
 
 As of now, the FEModel class is very unforgiving if you have any instabilities in your model. It will stop code execution and give you an error. A common error people make is to have too many end releases at a node, allowing the node to spin.
 
