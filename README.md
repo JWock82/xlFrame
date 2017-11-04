@@ -1,4 +1,5 @@
-# 2D-Frame-Analysis---VBA
+# xlFrame
+A VBA library to make structural analysis easy in Microsoft Excel.
 
 ## Getting Started
 This project gives you the ability to easily perform 2D structural analysis on frame/truss/beam structures using Visual Basic for Applications within Microsoft Excel. The project uses the finite element method to analyze structures. To get started, download and import the '.bas' and '.cls' files into your VBA project tree in the Visual Basic Editor built into Excel.
