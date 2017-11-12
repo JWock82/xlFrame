@@ -562,7 +562,7 @@ Public Sub SegmentMember()
                 End If
             
             'Moments
-            ElseIf M <> 0 And x1 >= x1 Then
+            ElseIf M <> 0 And x >= x1 Then
                 
                 'Find the moment (due to the applied moment) at the start of the segment
                 m_Segments(i).M1 = m_Segments(i).M1 - M
