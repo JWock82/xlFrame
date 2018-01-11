@@ -6,8 +6,6 @@ This project gives you the ability to perform 2D structural analysis on frame, t
 
 xlFrame was designed by a practicing licensed structural engineer (SE) with over 10 years of design experience. It was designed to meet the demand of real world structural analysis problems. It allows for quick development of structural engineering spreadsheets that solve indeterminate structures. xlFrame calculates reactions, member forces at any given point, max/min member forces, shear/moment/axial load diagrams, joint deflections, and member deflections.
 
-xlFrame has been thoroughly tested against many textbook problems, and the code has been reviewed again and again to debug and simplify it. It is generally very robust. That said, there are no guarantees with any software, and it is provided "As-is".
-
 ## Documentation
 For detailed documentation on how to get going, see the wiki.
 
