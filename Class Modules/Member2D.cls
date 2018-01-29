@@ -478,7 +478,7 @@ Public Sub SegmentMember()
     FEM2 = m_FER.GetValue(6, 1)
     Delta1 = LocalDisp.GetValue(2, 1)
     Delta2 = LocalDisp.GetValue(5, 1)
-    m_Segments(1).theta1 = 1 / 3 * ((M1 - FEM1) * Length / (m_E * m_I) - (M2 - FEM2) * Length / (2 * m_E * m_I) + (Delta2 - Delta1) / Length)
+    m_Segments(1).theta1 = 1 / 3 * ((M1 - FEM1) * Length / (m_E * m_I) - (M2 - FEM2) * Length / (2 * m_E * m_I) + 3 * (Delta2 - Delta1) / Length)
     m_Segments(1).Delta1 = Delta1
     
     'Step through each segment
