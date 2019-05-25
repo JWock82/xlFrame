@@ -142,7 +142,7 @@ ErrorHandler:
         
 End Sub
 
-'Inserts a new column of zeros at index 'i'
+'Inserts a new column of zeros at index 'j'
 Public Sub InsertCol(j As Long)
 
 On Error GoTo ErrorHandler:
