@@ -43,6 +43,14 @@ Private m_Segments() As New Segment         'Array representing mathematically c
 Private m_NumSegs As Integer                'Number of mathematically continuous segments in the member
 
 'Class properties
+Property Get NumSegs() As Integer
+    NumSegs = m_NumSegs
+End Property
+
+Property Get Segments() As Segment()
+    Segments = m_Segments
+End Property
+  
 Property Let Name(Value As String)
     m_Name = Value
 End Property
