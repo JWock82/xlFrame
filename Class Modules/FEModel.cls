@@ -738,6 +738,63 @@ Public Function GetDispDiagram(MemberName As String) As EZArray
     
 End Function
 
+'Returns the local displacement diagram for a member, segment-by-segment
+Public Function GetDispDiagram2(MemberName As String) As EZArray
+        
+    'Solve the model if necessary
+    If Solved = False Then
+        Call Analyze
+    End If
+    
+    'Start a new array to hold the results
+    Set GetDispDiagram2 = New EZArray
+    
+    'Step through each member in the 'Members' collection
+    Dim MemberItem As Member2D
+    For Each MemberItem In Members
+    
+        'Find the member in the 'Members' collection
+        If MemberItem.Name = MemberName Then
+            Const p As Long = 12 'qty of intermediate partitions per segment
+            Dim r As Long 'EZArray index
+            Dim s As Long 'Segment counter
+            Dim SegmentItem As Variant 'Segment
+
+            'Resize EZarray
+            Call GetDispDiagram2.Resize(MemberItem.NumSegs * (p + 1), 2)
+
+            For Each SegmentItem In MemberItem.Segments
+                With SegmentItem
+                
+                    Dim i As Long, x As Double
+                    s = s + 1
+            
+                    'Get diagram coordinates at intermediate points
+                    For i = 1 To p + 1
+                        
+                        'Calculate the position of the x-coordinate
+                        x = .SegStart + (i - 1) * (.SegEnd - .SegStart) / p
+                        
+                        'Determine EZArray index value
+                        r = i + (s - 1) * (p + 1)
+                        
+                        'Get the diagram coordinates
+                        Call GetDispDiagram2.SetValue(r, 1, x)
+                        Call GetDispDiagram2.SetValue(r, 2, MemberItem.Deflection(x))
+                        
+                    Next i
+                    
+                End With 'SegmentItem
+            Next SegmentItem
+            
+            Exit Function
+            
+        End If
+        
+    Next MemberItem
+    
+End Function
+
 'Returns the shear in a member at a given location
 Public Function GetShear(MemberName As String, x As Double) As Double
         
@@ -801,6 +858,70 @@ Public Function GetShearDiagram(MemberName As String) As EZArray
         
     Next MemberItem
     
+End Function
+
+'Returns the shear diagram for a member, segment-by-segment
+Public Function GetShearDiagram2(MemberName As String) As EZArray
+
+    'Solve the model if necessary
+    If Solved = False Then
+        Call Analyze
+    End If
+
+    'Start a new array to hold the results
+    Set GetShearDiagram2 = New EZArray
+
+    'Step through each member in the 'Members' collection
+    Dim MemberItem As Member2D
+    For Each MemberItem In Members
+
+        'Find the member in the 'Members' collection
+        If MemberItem.Name = MemberName Then
+            Const p As Long = 12 'qty of intermediate partitions per segment
+            Dim r As Long 'EZArray index
+            Dim s As Long 'Segment counter
+            Dim SegmentItem As Variant 'Segment
+
+            'Resize EZarray
+            Call GetShearDiagram2.Resize(MemberItem.NumSegs * (p + 1), 2)
+
+            For Each SegmentItem In MemberItem.Segments
+                With SegmentItem
+                
+                    Dim i As Long, x As Double
+                    s = s + 1
+                    
+                    'Determine EZArray index value
+                    r = 1 + (s - 1) * (p + 1)
+                    
+                    'Get diagram coordinates at start of segment
+                    Call GetShearDiagram2.SetValue(r, 1, .SegStart)
+                    Call GetShearDiagram2.SetValue(r, 2, .V1)
+                    
+                    'Get diagram coordinates at intermediate points
+                    For i = 2 To p + 1
+        
+                        'Calculate the position of the x-coordinate
+                        x = .SegStart + (i - 1) * (.SegEnd - .SegStart) / p
+                        
+                        'Determine EZArray index value
+                        r = i + (s - 1) * (p + 1)
+        
+                        'Get the rest of the diagram coordinates
+                        Call GetShearDiagram2.SetValue(r, 1, x)
+                        Call GetShearDiagram2.SetValue(r, 2, MemberItem.Shear(x))
+        
+                    Next i
+                    
+                End With 'SegmentItem
+            Next SegmentItem
+            
+            Exit Function
+
+        End If
+
+    Next MemberItem
+
 End Function
 
 'Returns the maximum shear in a member
@@ -909,6 +1030,70 @@ Public Function GetMomentDiagram(MemberName As String) As EZArray
                 Call GetMomentDiagram.SetValue(i, 2, MemberItem.Moment(x))
                 
             Next i
+            
+            Exit Function
+            
+        End If
+        
+    Next MemberItem
+    
+End Function
+
+'Returns the moment diagram for a member, segment-by-segment
+Public Function GetMomentDiagram2(MemberName As String) As EZArray
+        
+    'Solve the model if necessary
+    If Solved = False Then
+        Call Analyze
+    End If
+    
+    'Start a new array to hold the results
+    Set GetMomentDiagram2 = New EZArray
+    
+    'Step through each member in the 'Members' collection
+    Dim MemberItem As Member2D
+    For Each MemberItem In Members
+    
+        'Find the member in the 'Members' collection
+        If MemberItem.Name = MemberName Then
+            Const p As Long = 12 'qty of intermediate partitions per segment
+            Dim r As Long 'EZArray index
+            Dim s As Long 'Segment counter
+            Dim SegmentItem As Variant 'Segment
+
+            'Resize EZarray
+            Call GetMomentDiagram2.Resize(MemberItem.NumSegs * (p + 1), 2)
+
+            For Each SegmentItem In MemberItem.Segments
+                With SegmentItem
+                
+                    Dim i As Long, x As Double
+                    s = s + 1
+                    
+                    'Determine EZArray index value
+                    r = 1 + (s - 1) * (p + 1)
+                    
+                    'Get diagram coordinates at start of segment
+                    Call GetMomentDiagram2.SetValue(r, 1, .SegStart)
+                    Call GetMomentDiagram2.SetValue(r, 2, .M1)
+            
+                    'Get diagram coordinates at intermediate points
+                    For i = 2 To p + 1
+                        
+                        'Calculate the position of the x-coordinate
+                        x = .SegStart + (i - 1) * (.SegEnd - .SegStart) / p
+                        
+                        'Determine EZArray index value
+                        r = i + (s - 1) * (p + 1)
+                        
+                        'Get the diagram coordinates
+                        Call GetMomentDiagram2.SetValue(r, 1, x)
+                        Call GetMomentDiagram2.SetValue(r, 2, MemberItem.Moment(x))
+                        
+                    Next i
+                    
+                End With 'SegmentItem
+            Next SegmentItem
             
             Exit Function
             
