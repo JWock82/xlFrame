@@ -665,7 +665,7 @@ Public Function Mmax() As Double
         End If
     Next i
     
-    Mmax = WorksheetFunction.Max(Max, -LocalForces.GetValue(3, 1), LocalForces.GetValue(6, 1))
+    Mmax = WorksheetFunction.Max(Max, LocalForces.GetValue(3, 1), -LocalForces.GetValue(6, 1))
     
 End Function
 
@@ -682,7 +682,7 @@ Public Function Mmin() As Double
         End If
     Next i
     
-    Mmin = WorksheetFunction.Min(Min, -LocalForces.GetValue(3, 1), LocalForces.GetValue(6, 1))
+    Mmin = WorksheetFunction.Min(Min, LocalForces.GetValue(3, 1), -LocalForces.GetValue(6, 1))
     
 End Function
 
