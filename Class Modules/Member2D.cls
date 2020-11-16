@@ -512,7 +512,7 @@ Public Sub SegmentMember()
         'Add the beam end forces to the segment
         m_Segments(i).p1 = EndForces.GetValue(1, 1)                             'Axial force at the start of the member
         m_Segments(i).V1 = EndForces.GetValue(2, 1)                             'Shear at the start of the member
-        m_Segments(i).M1 = -EndForces.GetValue(3, 1) + m_Segments(i).V1 * x     'Moment due to shear and moment at the start of the member
+        m_Segments(i).M1 = EndForces.GetValue(3, 1) - m_Segments(i).V1 * x      'Moment due to shear and moment at the start of the member
         
         'Step through each load on the member
         For j = 1 To m_Loads.NumRows
