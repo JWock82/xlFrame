@@ -553,7 +553,7 @@ Public Sub SegmentMember()
                 
                 If Direction = "Transverse" Then
                     'Sum the load effects (due to the distributed load) up to the start of the segment
-                    m_Segments(i).V1 = m_Segments(i).V1 - (x2 - x1) * (w1 + w2) / 2
+                    m_Segments(i).V1 = m_Segments(i).V1 + (x2 - x1) * (w1 + w2) / 2
                     m_Segments(i).M1 = m_Segments(i).M1 - (x1 - x2) * (2 * w1 * x1 + w1 * x2 + w2 * x1 - 3 * w1 * x + 2 * w2 * x2 - 3 * w2 * x) / 6
                 ElseIf Direction = "Axial" Then
                     m_Segments(i).p1 = m_Segments(i).p1 + (x2 - x1) * (w1 + w2) / 2
@@ -564,7 +564,7 @@ Public Sub SegmentMember()
                 
                 If Direction = "Transverse" Then
                     'Find the shear and moment (due to the point load) at the start of the segment
-                    m_Segments(i).V1 = m_Segments(i).V1 - P
+                    m_Segments(i).V1 = m_Segments(i).V1 + P
                     m_Segments(i).M1 = m_Segments(i).M1 - P * (x - x1)
                 ElseIf Direction = "Axial" Then
                     m_Segments(i).p1 = m_Segments(i).p1 + P
@@ -574,7 +574,7 @@ Public Sub SegmentMember()
             ElseIf M <> 0 And Round(x, 8) >= Round(x1, 8) Then
                 
                 'Find the moment (due to the applied moment) at the start of the segment
-                m_Segments(i).M1 = m_Segments(i).M1 - M
+                m_Segments(i).M1 = m_Segments(i).M1 + M
                 
             End If
             
