@@ -795,6 +795,42 @@ Public Function GetDispDiagram2(MemberName As String) As EZArray
     
 End Function
 
+'Returns the maximum displacement in a given member
+Public Function GetMaxDisp(MemberName As String) As Double
+    
+    'Declare local variables
+    Dim MemberItem As Member2D
+    
+    'Step through each member in the collection
+    For Each MemberItem In Members
+    
+        'Get the desired member's maximum displacement
+        If MemberItem.Name = MemberName Then
+            GetMaxDisp = MemberItem.MaxDisplacement
+        End If
+        
+    Next MemberItem
+    
+End Function
+
+'Returns the minimum displacement in a given member
+Public Function GetMinDisp(MemberName As String) As Double
+    
+    'Declare local variables
+    Dim MemberItem As Member2D
+    
+    'Step through each member in the collection
+    For Each MemberItem In Members
+    
+        'Get the desired member's minimum displacement
+        If MemberItem.Name = MemberName Then
+            GetMinDisp = MemberItem.MinDisplacement
+        End If
+        
+    Next MemberItem
+    
+End Function
+
 'Returns the shear in a member at a given location
 Public Function GetShear(MemberName As String, x As Double) As Double
         
