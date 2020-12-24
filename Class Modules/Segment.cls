@@ -125,8 +125,8 @@ End Function
 'Checked 1/10/2017
 Public Function Shear(x As Double) As Double
     
-    'Return the shear at the location
-    Shear = m_V1 + (m_w2 - m_w1) / (2 * Length) * x ^ 2 + m_w1 * x
+    'Calculate the shear at the location
+    Shear = m_V1 - (m_w2 - m_w1) / (2 * Length) * x ^ 2 - m_w1 * x
     
 End Function
 
@@ -135,7 +135,7 @@ End Function
 Public Function Moment(x As Double) As Double
     
     'Return the moment at the location
-    Moment = m_M1 - m_V1 * x - (m_w2 - m_w1) / (6 * Length) * x ^ 3 - m_w1 * x ^ 2 / 2
+    Moment = m_M1 + m_V1 * x - (m_w2 - m_w1) / (6 * Length) * x ^ 3 - m_w1 * x ^ 2 / 2
     
 End Function
 
@@ -144,7 +144,7 @@ End Function
 Public Function Rotation(x As Double, EI As Double) As Double
     
     'Return the rotation at the location
-    Rotation = m_theta1 - 1 / EI * (m_M1 * x - m_V1 / 2 * x ^ 2 - (m_w2 - m_w1) / (24 * Length) * x ^ 4 - m_w1 / 6 * x ^ 3)
+    Rotation = m_theta1 + 1 / EI * (m_M1 * x + m_V1 / 2 * x ^ 2 - (m_w2 - m_w1) / (24 * Length) * x ^ 4 - m_w1 / 6 * x ^ 3)
     
 End Function
 
@@ -153,7 +153,7 @@ End Function
 Public Function Deflection(x As Double, EI As Double) As Double
 
     'Return the deflection at the location
-    Deflection = m_Delta1 + m_theta1 * x + 1 / EI * (-m_M1 / 2 * x ^ 2 + m_V1 / 6 * x ^ 3 + (m_w2 - m_w1) / (120 * Length) * x ^ 5 + m_w1 / 24 * x ^ 4)
+    Deflection = m_Delta1 + m_theta1 * x + 1 / EI * (m_M1 / 2 * x ^ 2 + m_V1 / 6 * x ^ 3 - (m_w2 - m_w1) / (120 * Length) * x ^ 5 - m_w1 / 24 * x ^ 4)
     
 End Function
 
@@ -297,7 +297,7 @@ Public Function MaxMoment() As Double
     'Find the quadratic equation parameters
     a = (m_w1 - m_w2) / (2 * Length)
     b = -m_w1
-    c = -m_V1
+    c = m_V1
     
     'Determine possible locations of maximum moment
     If a = 0 Then
@@ -349,7 +349,7 @@ Public Function MinMoment() As Double
     'Find the quadratic equation parameters
     a = (m_w1 - m_w2) / (2 * Length)
     b = -m_w1
-    c = -m_V1
+    c = m_V1
     
     'Determine possible locations of minimum moment
     If a = 0 Then
