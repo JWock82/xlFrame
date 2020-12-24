@@ -144,7 +144,7 @@ On Error GoTo ErrorHandler:
                     For b = 1 To Result.NumCols
                     
                         'This next "if" statement is used to eliminate precision errors by forcing an exact zero value.
-                        'Mathematically the "Else" portion of this statment should do that, but it leaves a tiny
+                        'Mathematically the "Else" portion of this statement should do that, but it leaves a tiny
                         'precision error which will trigger the "If Result.GetValue(a, j) <> 0" statement above to equal 'True'.
                         If b = j Then
                             Call Result.SetValue(a, b, 0)
