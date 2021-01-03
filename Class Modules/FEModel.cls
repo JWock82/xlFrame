@@ -40,7 +40,7 @@ Public Enum DispType
     RZ
 End Enum
 
-'Directions for member loads
+'Directions for member distributed loads
 Public Enum LoadDir
     Transverse
     Axial
@@ -58,30 +58,6 @@ Public Sub AddNode(NodeName As String, XCoord As Double, YCoord As Double)
     'Add the node to the dictionary of nodes
     Call Nodes.Add(NodeName, NewNode)
     
-    'Flag the model as unsolved
-    Solved = False
-    
-End Sub
-
-'Removes a node from the model
-Public Sub RemoveNode(NodeName As String)
-    
-    'Search through each item in the collection
-    Call Nodes.Remove(NodeName)
-                
-    'Flag the model as unsolved
-    Solved = False
-    
-End Sub
-
-'Adds a support to the model
-Public Sub EditSupport(NodeName As String, SupportDX As Boolean, SupportDY As Boolean, SupportRZ As Boolean)
-            
-    'Add the support
-    Nodes(NodeName).SupportDX = SupportDX
-    Nodes(NodeName).SupportDY = SupportDY
-    Nodes(NodeName).SupportRZ = SupportRZ
-            
     'Flag the model as unsolved
     Solved = False
     
@@ -112,7 +88,31 @@ Public Sub AddMember(MemberName As String, iNode As String, jNode As String, Ela
     
 End Sub
 
-'Adds a member end release
+'Removes a node from the model
+Public Sub RemoveNode(NodeName As String)
+    
+    'Search through each item in the collection
+    Call Nodes.Remove(NodeName)
+                
+    'Flag the model as unsolved
+    Solved = False
+    
+End Sub
+
+'Edits the support conditions at any given node
+Public Sub EditSupport(NodeName As String, SupportDX As Boolean, SupportDY As Boolean, SupportRZ As Boolean)
+            
+    'Add the support
+    Nodes(NodeName).SupportDX = SupportDX
+    Nodes(NodeName).SupportDY = SupportDY
+    Nodes(NodeName).SupportRZ = SupportRZ
+            
+    'Flag the model as unsolved
+    Solved = False
+    
+End Sub
+
+'Edits the end release configuration for any given member
 Public Sub EditEndReleases(MemberName As String, iRelease As Boolean, jRelease As Boolean)
             
     'Release the appropriate degrees of freedom
@@ -147,27 +147,16 @@ Public Sub AddMemberPointLoad(MemberName As String, P As Double, x As Double, Di
 End Sub
 
 'Adds a concentrated moment to the member
-Public Sub AddMemberMoment(MemberName As String, m As Double, x As Double)
+Public Sub AddMemberMoment(MemberName As String, Moment As Double, x As Double)
+      
+    'Get the member from the `Members` dictionary
+    Set Member = Members(MemberName)
+      
+    'Add the member moment
+    Call Member.AddMoment(Moment, x)
     
-    'Step through each member
-    Dim MemberItem As Member2D
-    For Each MemberItem In Members
-        
-        'Find the member
-        If MemberItem.Name = MemberName Then
-            
-            'Add the member moment
-            Call MemberItem.AddMoment(m, x)
-            
-            'Flag the model as unsolved
-            Solved = False
-            
-            'Exit the subroutine
-            Exit Sub
-            
-        End If
-        
-    Next MemberItem
+    'Flag the model as unsolved
+    Solved = False
     
 End Sub
 
@@ -203,31 +192,25 @@ Public Sub AddMemberDistLoad(MemberName As String, w1 As Double, w2 As Double, O
 End Sub
 
 'Adds a nodal load to a node
-Public Sub AddNodeLoad(NodeName As String, Direction, P, Optional LoadCase = "Case 1")
+Public Sub AddNodeLoad(NodeName As String, Load As Double, Direction As ForceType, Optional LoadCase = "Case 1")
     
-    'Step through each node in the collection
-    Dim NodeItem As Node2D, i As Integer
-    For Each NodeItem In Nodes
-        
-        'Find the node
-        If NodeItem.Name = NodeName Then
-            
-            'Add the load
-            i = NodeItem.NodeLoads.NumRows + 1                 'Determine how long the arry will be with 1 more item
-            Call NodeItem.NodeLoads.Resize(i, 3, True)         'Resize the array to contain 1 more item
-            Call NodeItem.NodeLoads.SetValue(i, 1, Direction)  'Add the load direction
-            Call NodeItem.NodeLoads.SetValue(i, 2, P)          'Add the load magnitude
-            Call NodeItem.NodeLoads.SetValue(i, 3, LoadCase)   'Add the load case
-            
-            'Flag the model as unsolved
-            Solved = False
-            
-            'Exit the subroutine
-            Exit Sub
-            
-        End If
-        
-    Next NodeItem
+    'Get the node to add the load to
+    Dim Node As Node2D
+    Set Node = Nodes(NodeName)
+    
+    'Add the load
+    Dim i As Long
+    i = Node.NodeLoads.NumRows + 1                 'Determine how long the array will be with 1 more item
+    Call Node.NodeLoads.Resize(i, 3, True)         'Resize the array to contain 1 more item
+    Call Node.NodeLoads.SetValue(i, 1, Direction)  'Add the load direction
+    Call Node.NodeLoads.SetValue(i, 2, Load)       'Add the load magnitude
+    Call Node.NodeLoads.SetValue(i, 3, LoadCase)   'Add the load case
+    
+    'Flag the model as unsolved
+    Solved = False
+    
+    'Exit the subroutine
+    Exit Sub
     
 End Sub
 
@@ -246,8 +229,8 @@ Public Sub AddLoadCombo(ComboName As String, LoadCases As Variant, Factors As Va
     Next LoadCase
     
     'Add the load combination to the dictionary of load combinations
-    'Call LoadCombos.Add(ComboName, NewCombo)
-    LoadCombos.Add Key:=ComboName, Item:=NewCombo
+    Call LoadCombos.Add(ComboName, NewCombo)
+    'LoadCombos.Add Key:=ComboName, Item:=NewCombo
     
 End Sub
 
@@ -646,8 +629,9 @@ Private Function CalcReactions()
                 For i = 1 To Node.NodeLoads.NumRows
                     
                     'Step through each load case in the current load combination
-                    For Each LoadCase In LoadCombos(ComboName)
+                    For Each LoadCase In LoadCombos(ComboName).Factors.keys
                         
+                        'Check to see if load `i` in the array belongs to `LoadCase`
                         If LoadCase = Node.NodeLoads.GetValue(i, 3) Then
                             
                             Factor = LoadCombos(ComboName).Factors(LoadCase)
@@ -682,28 +666,18 @@ Public Function GetDisp(NodeName As String, Direction As DispType, Optional Comb
         Call Analyze
     End If
     
-    'Step through each node in the collection
-    Dim NodeItem As Node2D
-    For Each NodeItem In Nodes
-        
-        'Find the node
-        If NodeItem.Name = NodeName Then
-            
-            'Return the requested displacement
-            If Direction = DX Then
-                GetDisp = NodeItem.DX(ComboName)
-            ElseIf Direction = DY Then
-                GetDisp = NodeItem.DY(ComboName)
-            ElseIf Direction = RZ Then
-                GetDisp = NodeItem.RZ(ComboName)
-            End If
-            
-            'Exit the function
-            Exit Function
-            
-        End If
-        
-    Next NodeItem
+    'Get the node from the `Nodes` dictionary
+    Dim Node As Node2D
+    Set Node = Nodes(NodeName)
+    
+    'Return the requested displacement
+    If Direction = DX Then
+        GetDisp = Node.DX(ComboName)
+    ElseIf Direction = DY Then
+        GetDisp = Node.DY(ComboName)
+    ElseIf Direction = RZ Then
+        GetDisp = Node.RZ(ComboName)
+    End If
     
 End Function
 
@@ -714,27 +688,17 @@ Public Function GetMemberDisp(MemberName As String, x As Double, Optional ComboN
         Call Analyze
     End If
     
-    'Step through each member in the collection
-    Dim MemberItem As Member2D
-    For Each MemberItem In Members
-        
-        'Find the node
-        If MemberItem.Name = MemberName Then
+    'Get the member from the `Members` dictionary
+    Dim Member As Member2D
+    Set Member = Members(MemberName)
             
-            'Return the requested displacement
-            GetMemberDisp = MemberItem.Deflection(x, ComboName)
-            
-            'Exit the function
-            Exit Function
-            
-        End If
-        
-    Next MemberItem
+    'Return the requested displacement
+    GetMemberDisp = Member.Deflection(x, ComboName)
     
 End Function
 
 'Returns the local displacement diagram for a member
-Public Function GetDispDiagram(MemberName As String, Optional ComboName As Variant = "Combo 1") As EZArray
+Public Function GetDispDiagram(MemberName As String, Optional ComboName As Variant = "Combo 1", Optional NumPoints As Integer = 20) As EZArray
         
     'Solve the model if necessary
     If Solved = False Then
@@ -743,37 +707,30 @@ Public Function GetDispDiagram(MemberName As String, Optional ComboName As Varia
     
     'Start a new array to hold the results
     Set GetDispDiagram = New EZArray
-    Call GetDispDiagram.Resize(20, 2)
+    Call GetDispDiagram.Resize(CLng(NumPoints), 2)
     
-    'Step through each member in the 'Members' collection
-    Dim MemberItem As Member2D
-    For Each MemberItem In Members
-    
-        'Find the member in the 'Members' collection
-        If MemberItem.Name = MemberName Then
+    'Get the member from the `Members` dictionary
+    Dim Member As Member2D
+    Set Member = Members(MemberName)
             
-            'Get the displacement at 20 points
-            Dim i As Long, x As Double
-            For i = 1 To 20
-                
-                'Calculate the position of the x-coordinate
-                x = (i - 1) * MemberItem.Length / 19
-                
-                'Get the diagram coordinates
-                Call GetDispDiagram.SetValue(i, 1, x)
-                Call GetDispDiagram.SetValue(i, 2, MemberItem.Deflection(x, ComboName))
-                
-            Next i
-            
-            Exit Function
-            
-        End If
+    'Get the displacement at `NumPoints` points
+    Dim i As Long, x As Double
+    For i = 1 To NumPoints
         
-    Next MemberItem
+        'Calculate the position of the x-coordinate
+        x = (i - 1) * Member.Length / (NumPoints - 1)
+        
+        'Get the diagram coordinates
+        Call GetDispDiagram.SetValue(i, 1, x)
+        Call GetDispDiagram.SetValue(i, 2, Member.Deflection(x, ComboName))
+        
+    Next i
     
 End Function
 
-'Returns the local displacement diagram for a member, segment-by-segment
+'Returns the local displacement diagram for a member
+'This function ensures locations of load discontinuities are included in the displacement diagram.
+'The number of points will vary depending on the number of discontinuities in the member.
 Public Function GetDispDiagram2(MemberName As String, Optional ComboName As Variant = "Combo 1") As EZArray
         
     'Solve the model if necessary
@@ -784,86 +741,68 @@ Public Function GetDispDiagram2(MemberName As String, Optional ComboName As Vari
     'Start a new array to hold the results
     Set GetDispDiagram2 = New EZArray
     
-    'Step through each member in the 'Members' collection
-    Dim MemberItem As Member2D
-    For Each MemberItem In Members
+    'Get the member from the `Members` dictionary
+    Dim Member As Member2D
+    Set Member = Members(MemberName)
     
-        'Find the member in the 'Members' collection
-        If MemberItem.Name = MemberName Then
-            Const P As Long = 12 'qty of intermediate partitions per segment
-            Dim r As Long 'EZArray index
-            Dim s As Long 'Segment counter
-            Dim SegmentItem As Variant 'Segment
+    Const P As Long = 12 'qty of intermediate partitions per segment
+    Dim r As Long 'EZArray index
+    Dim s As Long 'Segment counter
+    Dim SegmentItem As Variant 'Segment
+    
+    'Resize EZarray
+    Call GetDispDiagram2.Resize(Member.NumSegs * (P + 1), 2)
 
-            'Resize EZarray
-            Call GetDispDiagram2.Resize(MemberItem.NumSegs * (P + 1), 2)
-
-            For Each SegmentItem In MemberItem.Segments
-                With SegmentItem
-                
-                    Dim i As Long, x As Double
-                    s = s + 1
-            
-                    'Get diagram coordinates at intermediate points
-                    For i = 1 To P + 1
-                        
-                        'Calculate the position of the x-coordinate
-                        x = .SegStart + (i - 1) * (.SegEnd - .SegStart) / P
-                        
-                        'Determine EZArray index value
-                        r = i + (s - 1) * (P + 1)
-                        
-                        'Get the diagram coordinates
-                        Call GetDispDiagram2.SetValue(r, 1, x)
-                        Call GetDispDiagram2.SetValue(r, 2, MemberItem.Deflection(x, ComboName))
-                        
-                    Next i
-                    
-                End With 'SegmentItem
-            Next SegmentItem
-            
-            Exit Function
-            
-        End If
+    For Each SegmentItem In Member.Segments
+    
+        With SegmentItem
         
-    Next MemberItem
+            Dim i As Long, x As Double
+            s = s + 1
+    
+            'Get diagram coordinates at intermediate points
+            For i = 1 To P + 1
+                
+                'Calculate the position of the x-coordinate
+                x = .SegStart + (i - 1) * (.SegEnd - .SegStart) / P
+                
+                'Determine EZArray index value
+                r = i + (s - 1) * (P + 1)
+                
+                'Get the diagram coordinates
+                Call GetDispDiagram2.SetValue(r, 1, x)
+                Call GetDispDiagram2.SetValue(r, 2, Member.Deflection(x, ComboName))
+                
+            Next i
+            
+        End With
+        
+    Next SegmentItem
     
 End Function
 
 'Returns the maximum displacement in a given member
 Public Function GetMaxDisp(MemberName As String, Optional ComboName As Variant = "Combo 1") As Double
-    
-    'Declare local variables
-    Dim MemberItem As Member2D
-    
-    'Step through each member in the collection
-    For Each MemberItem In Members
-    
-        'Get the desired member's maximum displacement
-        If MemberItem.Name = MemberName Then
-            GetMaxDisp = MemberItem.MaxDisplacement(ComboName)
-        End If
         
-    Next MemberItem
+    'Solve the model if necessary
+    If Solved = False Then
+        Call Analyze
+    End If
+    
+    GetMaxDisp = Members(MemberName).MaxDisplacement(ComboName)
     
 End Function
 
 'Returns the minimum displacement in a given member
 Public Function GetMinDisp(MemberName As String, Optional ComboName As Variant = "Combo 1") As Double
-    
-    'Declare local variables
-    Dim MemberItem As Member2D
-    
-    'Step through each member in the collection
-    For Each MemberItem In Members
-    
-        'Get the desired member's minimum displacement
-        If MemberItem.Name = MemberName Then
-            GetMinDisp = MemberItem.MinDisplacement(ComboName)
-        End If
         
-    Next MemberItem
+    'Solve the model if necessary
+    If Solved = False Then
+        Call Analyze
+    End If
     
+    GetMinDisp = Members(MemberName).MinDisplacement(ComboName)
+
 End Function
 
 'Returns the shear in a member at a given location
@@ -874,25 +813,13 @@ Public Function GetShear(MemberName As String, x As Double, Optional ComboName A
         Call Analyze
     End If
     
-    'Step through each member in the collection
-    Dim MemberItem As Member2D
-    For Each MemberItem In Members
-        
-        'Find the member
-        If MemberItem.Name = MemberName Then
-            
-            'Get the shear at 'x'
-            GetShear = MemberItem.Shear(x, ComboName)
-            Exit Function
-            
-        End If
-        
-    Next MemberItem
+    'Get the shear at 'x'
+    GetShear = Members(MemberName).Shear(x, ComboName)
 
 End Function
 
 'Returns the shear diagram for a member
-Public Function GetShearDiagram(MemberName As String, Optional ComboName As Variant = "Combo 1") As EZArray
+Public Function GetShearDiagram(MemberName As String, Optional ComboName As Variant = "Combo 1", Optional NumPoints As Integer = 20) As EZArray
        
     'Solve the model if necessary
     If Solved = False Then
@@ -901,18 +828,18 @@ Public Function GetShearDiagram(MemberName As String, Optional ComboName As Vari
     
     'Start a new array to hold the results
     Set GetShearDiagram = New EZArray
-    Call GetShearDiagram.Resize(20, 2)
+    Call GetShearDiagram.Resize(CLng(NumPoints), 2)
     
-    'Step through each member in the 'Members' collection
+    'Get the member from the `Members` dictionary
     Dim Member As Member2D
     Set Member = Members(MemberName)
             
-    'Get the shear force at 20 points
+    'Get the shear force at `NumPoints` points
     Dim i As Long, x As Double
-    For i = 1 To 20
+    For i = 1 To NumPoints
         
         'Calculate the position of the x-coordinate
-        x = (i - 1) * Member.Length / 19
+        x = (i - 1) * Member.Length / (NumPoints - 1)
         
         'Get the diagram coordinates
         Call GetShearDiagram.SetValue(i, 1, x)
@@ -920,11 +847,11 @@ Public Function GetShearDiagram(MemberName As String, Optional ComboName As Vari
         
     Next i
     
-    Exit Function
-    
 End Function
 
-'Returns the shear diagram for a member, segment-by-segment
+'Returns the shear diagram for a member
+'This function ensures locations of load discontinuities are included in the shear diagram. The
+'number of points will vary depending on the number of discontinuities in the member.
 Public Function GetShearDiagram2(MemberName As String, Optional ComboName As Variant = "Combo 1") As EZArray
 
     'Solve the model if necessary
@@ -935,56 +862,50 @@ Public Function GetShearDiagram2(MemberName As String, Optional ComboName As Var
     'Start a new array to hold the results
     Set GetShearDiagram2 = New EZArray
 
-    'Step through each member in the 'Members' collection
-    Dim MemberItem As Member2D
-    For Each MemberItem In Members
+    'Get the member from the `Members` dictionary
+    Dim Member As Member2D
+    Set Member = Members(MemberName)
+    
+    Const P As Long = 12 'qty of intermediate partitions per segment
+    Dim r As Long 'EZArray index
+    Dim s As Long 'Segment counter
+    Dim SegmentItem As Variant 'Segment
 
-        'Find the member in the 'Members' collection
-        If MemberItem.Name = MemberName Then
-            Const P As Long = 12 'qty of intermediate partitions per segment
-            Dim r As Long 'EZArray index
-            Dim s As Long 'Segment counter
-            Dim SegmentItem As Variant 'Segment
+    'Resize EZarray
+    Call GetShearDiagram2.Resize(Member.NumSegs * (P + 1), 2)
 
-            'Resize EZarray
-            Call GetShearDiagram2.Resize(MemberItem.NumSegs * (P + 1), 2)
-
-            For Each SegmentItem In MemberItem.Segments
-                With SegmentItem
-                
-                    Dim i As Long, x As Double
-                    s = s + 1
-                    
-                    'Determine EZArray index value
-                    r = 1 + (s - 1) * (P + 1)
-                    
-                    'Get diagram coordinates at start of segment
-                    Call GetShearDiagram2.SetValue(r, 1, .SegStart)
-                    Call GetShearDiagram2.SetValue(r, 2, .V1)
-                    
-                    'Get diagram coordinates at intermediate points
-                    For i = 2 To P + 1
+    For Each SegmentItem In Member.Segments
+    
+        With SegmentItem
         
-                        'Calculate the position of the x-coordinate
-                        x = .SegStart + (i - 1) * (.SegEnd - .SegStart) / P
-                        
-                        'Determine EZArray index value
-                        r = i + (s - 1) * (P + 1)
-        
-                        'Get the rest of the diagram coordinates
-                        Call GetShearDiagram2.SetValue(r, 1, x)
-                        Call GetShearDiagram2.SetValue(r, 2, MemberItem.Shear(x, ComboName))
-        
-                    Next i
-                    
-                End With 'SegmentItem
-            Next SegmentItem
+            Dim i As Long, x As Double
+            s = s + 1
             
-            Exit Function
+            'Determine EZArray index value
+            r = 1 + (s - 1) * (P + 1)
+            
+            'Get diagram coordinates at start of segment
+            Call GetShearDiagram2.SetValue(r, 1, .SegStart)
+            Call GetShearDiagram2.SetValue(r, 2, .V1)
+            
+            'Get diagram coordinates at intermediate points
+            For i = 2 To P + 1
 
-        End If
+                'Calculate the position of the x-coordinate
+                x = .SegStart + (i - 1) * (.SegEnd - .SegStart) / P
+                
+                'Determine EZArray index value
+                r = i + (s - 1) * (P + 1)
 
-    Next MemberItem
+                'Get the rest of the diagram coordinates
+                Call GetShearDiagram2.SetValue(r, 1, x)
+                Call GetShearDiagram2.SetValue(r, 2, Member.Shear(x, ComboName))
+
+            Next i
+            
+        End With
+        
+    Next SegmentItem
 
 End Function
 
@@ -996,20 +917,8 @@ Public Function GetMaxShear(MemberName As String, Optional ComboName As Variant 
         Call Analyze
     End If
     
-    'Step through each member in the collection
-    Dim MemberItem As Member2D
-    For Each MemberItem In Members
-        
-        'Find the member
-        If MemberItem.Name = MemberName Then
-            
-            'Get the maximum shear
-            GetMaxShear = MemberItem.Vmax(ComboName)
-            Exit Function
-            
-        End If
-        
-    Next MemberItem
+    'Get the maximum shear
+    GetMaxShear = Members(MemberName).Vmax(ComboName)
     
 End Function
 
@@ -1021,20 +930,8 @@ Public Function GetMinShear(MemberName As String, Optional ComboName As Variant 
         Call Analyze
     End If
     
-    'Step through each member in the collection
-    Dim MemberItem As Member2D
-    For Each MemberItem In Members
-        
-        'Find the member
-        If MemberItem.Name = MemberName Then
-            
-            'Get the maximum shear
-            GetMinShear = MemberItem.Vmin(ComboName)
-            Exit Function
-            
-        End If
-        
-    Next MemberItem
+    'Get the maximum shear
+    GetMinShear = Members(MemberName).Vmin(ComboName)
     
 End Function
 
@@ -1046,21 +943,9 @@ Public Function GetMoment(MemberName As String, x As Double, Optional ComboName 
         Call Analyze
     End If
     
-    'Step through each member in the collection
-    Dim MemberItem As Member2D
-    For Each MemberItem In Members
-        
-        'Find the member
-        If MemberItem.Name = MemberName Then
+    'Get the moment at 'x'
+    GetMoment = Members(MemberName).Moment(x, ComboName)
             
-            'Get the moment at 'x'
-            GetMoment = MemberItem.Moment(x, ComboName)
-            Exit Function
-            
-        End If
-        
-    Next MemberItem
-    
 End Function
 
 'Returns the moment diagram for a member
@@ -1092,11 +977,11 @@ Public Function GetMomentDiagram(MemberName As String, Optional ComboName As Var
         
     Next i
     
-    Exit Function
-    
 End Function
 
-'Returns the moment diagram for a member, segment-by-segment
+'Returns the moment diagram for a member
+'This function ensures locations of load discontinuities are included in the moment diagram. The
+'number of points will vary depending on the number of discontinuities in the member.
 Public Function GetMomentDiagram2(MemberName As String, Optional ComboName As Variant = "Combo 1") As EZArray
         
     'Solve the model if necessary
@@ -1107,56 +992,50 @@ Public Function GetMomentDiagram2(MemberName As String, Optional ComboName As Va
     'Start a new array to hold the results
     Set GetMomentDiagram2 = New EZArray
     
-    'Step through each member in the 'Members' collection
-    Dim MemberItem As Member2D
-    For Each MemberItem In Members
+    'Get the member from the `Members` dictionary
+    Dim Member As Member2D
+    Set Member = Members(MemberName)
     
-        'Find the member in the 'Members' collection
-        If MemberItem.Name = MemberName Then
-            Const P As Long = 12 'qty of intermediate partitions per segment
-            Dim r As Long 'EZArray index
-            Dim s As Long 'Segment counter
-            Dim SegmentItem As Variant 'Segment
+    Const P As Long = 12 'qty of intermediate partitions per segment
+    Dim r As Long 'EZArray index
+    Dim s As Long 'Segment counter
+    Dim SegmentItem As Variant 'Segment
 
-            'Resize EZarray
-            Call GetMomentDiagram2.Resize(MemberItem.NumSegs * (P + 1), 2)
+    'Resize EZarray
+    Call GetMomentDiagram2.Resize(Member.NumSegs * (P + 1), 2)
 
-            For Each SegmentItem In MemberItem.Segments
-                With SegmentItem
-                
-                    Dim i As Long, x As Double
-                    s = s + 1
-                    
-                    'Determine EZArray index value
-                    r = 1 + (s - 1) * (P + 1)
-                    
-                    'Get diagram coordinates at start of segment
-                    Call GetMomentDiagram2.SetValue(r, 1, .SegStart)
-                    Call GetMomentDiagram2.SetValue(r, 2, .M1)
-            
-                    'Get diagram coordinates at intermediate points
-                    For i = 2 To P + 1
-                        
-                        'Calculate the position of the x-coordinate
-                        x = .SegStart + (i - 1) * (.SegEnd - .SegStart) / P
-                        
-                        'Determine EZArray index value
-                        r = i + (s - 1) * (P + 1)
-                        
-                        'Get the diagram coordinates
-                        Call GetMomentDiagram2.SetValue(r, 1, x)
-                        Call GetMomentDiagram2.SetValue(r, 2, MemberItem.Moment(x, ComboName))
-                        
-                    Next i
-                    
-                End With 'SegmentItem
-            Next SegmentItem
-            
-            Exit Function
-            
-        End If
+    For Each SegmentItem In Member.Segments
+    
+        With SegmentItem
         
-    Next MemberItem
+            Dim i As Long, x As Double
+            s = s + 1
+            
+            'Determine EZArray index value
+            r = 1 + (s - 1) * (P + 1)
+            
+            'Get diagram coordinates at start of segment
+            Call GetMomentDiagram2.SetValue(r, 1, .SegStart)
+            Call GetMomentDiagram2.SetValue(r, 2, .M1)
+    
+            'Get diagram coordinates at intermediate points
+            For i = 2 To P + 1
+                
+                'Calculate the position of the x-coordinate
+                x = .SegStart + (i - 1) * (.SegEnd - .SegStart) / P
+                
+                'Determine EZArray index value
+                r = i + (s - 1) * (P + 1)
+                
+                'Get the diagram coordinates
+                Call GetMomentDiagram2.SetValue(r, 1, x)
+                Call GetMomentDiagram2.SetValue(r, 2, Member.Moment(x, ComboName))
+                
+            Next i
+            
+        End With
+        
+    Next SegmentItem
     
 End Function
 
@@ -1167,21 +1046,9 @@ Public Function GetMaxMoment(MemberName As String, Optional ComboName As Variant
     If Solved = False Then
         Call Analyze
     End If
-    
-    'Step through each member in the collection
-    Dim MemberItem As Member2D
-    For Each MemberItem In Members
-        
-        'Find the member
-        If MemberItem.Name = MemberName Then
-            
-            'Get the maximum moment
-            GetMaxMoment = MemberItem.Mmax(ComboName)
-            Exit Function
-            
-        End If
-        
-    Next MemberItem
+
+    'Get the maximum moment
+    GetMaxMoment = Members(MemberName).Mmax(ComboName)
     
 End Function
 
@@ -1193,20 +1060,8 @@ Public Function GetMinMoment(MemberName As String, Optional ComboName As Variant
         Call Analyze
     End If
     
-    'Step through each member in the collection
-    Dim MemberItem As Member2D
-    For Each MemberItem In Members
-        
-        'Find the member
-        If MemberItem.Name = MemberName Then
-            
-            'Get the minimum moment
-            GetMinMoment = MemberItem.Mmin(ComboName)
-            Exit Function
-            
-        End If
-        
-    Next MemberItem
+    'Get the minimum moment
+    GetMinMoment = Members(MemberName).Mmin(ComboName)
     
 End Function
 
@@ -1217,26 +1072,14 @@ Public Function GetAxial(MemberName As String, x As Double, Optional ComboName A
     If Solved = False Then
         Call Analyze
     End If
-    
-    'Step through each member in the collection
-    Dim MemberItem As Member2D
-    For Each MemberItem In Members
-        
-        'Find the member
-        If MemberItem.Name = MemberName Then
-            
-            'Get the axial force at 'x'
-            GetAxial = MemberItem.Axial(x, ComboName)
-            Exit Function
-            
-        End If
-        
-    Next MemberItem
+
+    'Get the axial force at 'x'
+    GetAxial = Members(MemberName).Axial(x, ComboName)
     
 End Function
 
 'Returns the axial force diagram for a member
-Public Function GetAxialDiagram(MemberName As String, Optional ComboName As Variant = "Combo 1") As EZArray
+Public Function GetAxialDiagram(MemberName As String, Optional ComboName As Variant = "Combo 1", Optional NumPoints As Integer = 20) As EZArray
         
     'Solve the model if necessary
     If Solved = False Then
@@ -1245,33 +1088,24 @@ Public Function GetAxialDiagram(MemberName As String, Optional ComboName As Vari
     
     'Start a new array to hold the results
     Set GetAxialDiagram = New EZArray
-    Call GetAxialDiagram.Resize(20, 2)
+    Call GetAxialDiagram.Resize(CLng(NumPoints), 2)
     
-    'Step through each member in the 'Members' collection
-    Dim MemberItem As Member2D
-    For Each MemberItem In Members
-    
-        'Find the member in the 'Members' collection
-        If MemberItem.Name = MemberName Then
+    'Get the member from the `Members` dictionary
+    Dim Member As Member2D
+    Set Member = Members(MemberName)
             
-            'Get the axial force at 20 points
-            Dim i As Long, x As Double
-            For i = 1 To 20
-                
-                'Calculate the position of the x-coordinate
-                x = (i - 1) * MemberItem.Length / 19
-                
-                'Get the diagram coordinates
-                Call GetAxialDiagram.SetValue(i, 1, x)
-                Call GetAxialDiagram.SetValue(i, 2, MemberItem.Axial(x, ComboName))
-                
-            Next i
-            
-            Exit Function
-            
-        End If
+    'Get the axial force at `NumPoints` points
+    Dim i As Long, x As Double
+    For i = 1 To NumPoints
         
-    Next MemberItem
+        'Calculate the position of the x-coordinate
+        x = (i - 1) * Member.Length / (NumPoints - 1)
+        
+        'Get the diagram coordinates
+        Call GetAxialDiagram.SetValue(i, 1, x)
+        Call GetAxialDiagram.SetValue(i, 2, Member.Axial(x, ComboName))
+        
+    Next i
     
 End Function
 
@@ -1283,20 +1117,8 @@ Public Function GetMaxAxial(MemberName As String, Optional ComboName As Variant 
         Call Analyze
     End If
     
-    'Step through each member in the collection
-    Dim MemberItem As Member2D
-    For Each MemberItem In Members
-        
-        'Find the member
-        If MemberItem.Name = MemberName Then
-            
-            'Get the maximum axial force
-            GetMaxAxial = MemberItem.Pmax(ComboName)
-            Exit Function
-            
-        End If
-        
-    Next MemberItem
+    'Get the maximum axial force
+    GetMaxAxial = Members(MemberName).Pmax(ComboName)
     
 End Function
 
@@ -1308,21 +1130,9 @@ Public Function GetMinAxial(MemberName As String, Optional ComboName As Variant 
         Call Analyze
     End If
     
-    'Step through each member in the collection
-    Dim MemberItem As Member2D
-    For Each MemberItem In Members
-        
-        'Find the member
-        If MemberItem.Name = MemberName Then
-            
-            'Get the minimum axial force
-            GetMinAxial = MemberItem.Pmin(ComboName)
-            Exit Function
-            
-        End If
-        
-    Next MemberItem
-    
+    'Get the minimum axial force
+    GetMinAxial = Members(MemberName).Pmin(ComboName)
+
 End Function
 
 'Constructor

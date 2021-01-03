@@ -10,7 +10,7 @@ Attribute VB_Exposed = False
 Private m_Matrix() As Double
 
 'Resizes the matrix
-Public Sub Resize(M As Long, n As Long, Optional SaveValues As Boolean = True)
+Public Sub Resize(m As Long, n As Long, Optional SaveValues As Boolean = True)
     
     'Save the old matrix if necessary
     'Trying to save values in an empty matrix will generate an error
@@ -23,7 +23,7 @@ Public Sub Resize(M As Long, n As Long, Optional SaveValues As Boolean = True)
     End If
     
     'Resize the matrix
-    ReDim m_Matrix(1 To M, 1 To n) As Double
+    ReDim m_Matrix(1 To m, 1 To n) As Double
     
     'Initialize the matrix
     Dim i As Long, j As Long
@@ -36,11 +36,11 @@ Public Sub Resize(M As Long, n As Long, Optional SaveValues As Boolean = True)
     'Add values from the old matrix if necessary
     If SaveValues = True Then
     
-        Dim a As Long, b As Long
-        a = WorksheetFunction.Min(UBound(Temp, 1), M)   'The 'Min' function is necessary if the matrix is getting smaller
+        Dim A As Long, b As Long
+        A = WorksheetFunction.Min(UBound(Temp, 1), m)   'The 'Min' function is necessary if the matrix is getting smaller
         b = WorksheetFunction.Min(UBound(Temp, 2), n)
         
-        For i = 1 To a
+        For i = 1 To A
             For j = 1 To b
                 m_Matrix(i, j) = Temp(i, j)
             Next j
@@ -115,15 +115,15 @@ On Error GoTo ErrorHandler:
         Call Resize(NumRows + 1, NumCols, True)
     
         'Shift everything at or below row 'i' down one row
-        Dim a As Long, j As Long
-        a = NumRows
-        While a > i
+        Dim A As Long, j As Long
+        A = NumRows
+        While A > i
         
             For j = 1 To NumCols
-                m_Matrix(a, j) = m_Matrix(a - 1, j)
+                m_Matrix(A, j) = m_Matrix(A - 1, j)
             Next j
             
-            a = a - 1
+            A = A - 1
             
         Wend
         
@@ -275,14 +275,18 @@ Public Sub PrintMatrix(PrintRange As Range, Optional ClearExisting As Boolean = 
     End If
     
     'Count the number of rows and columns in the matrix
-    Dim M As Integer, n As Integer
-    M = NumRows
+    Dim m As Integer, n As Integer
+    m = NumRows
     n = NumCols
     
     'Identify the range the matrix will be printed to
-    Set FittedPrintRange = PrintRange.Worksheet.Range(PrintRange.Cells(1, 1).Address, PrintRange.Cells(M, n).Address)
+    Set FittedPrintRange = PrintRange.Worksheet.Range(PrintRange.Cells(1, 1).Address, PrintRange.Cells(m, n).Address)
     
     'Print the matrix to the range
     FittedPrintRange = m_Matrix
     
+End Sub
+
+Private Sub Class_Initialize()
+
 End Sub

@@ -512,7 +512,7 @@ Public Sub SegmentMember(Optional ComboName As Variant = "Combo 1")
         End If
         
         'Add the effects of the beam end forces to the segment
-        m_Segments(i).P1 = EndForces.GetValue(1, 1)                                 'Axial force at the start of the member
+        m_Segments(i).p1 = EndForces.GetValue(1, 1)                                 'Axial force at the start of the member
         m_Segments(i).V1 = EndForces.GetValue(2, 1)                                 'Shear at the start of the member
         m_Segments(i).M1 = EndForces.GetValue(3, 1) - EndForces.GetValue(2, 1) * x  'Moment due to shear and moment at the start of the member
         
@@ -533,7 +533,7 @@ Public Sub SegmentMember(Optional ComboName As Variant = "Combo 1")
                 If x1 <= x And LoadCase = m_PtLoads.GetValue(j, 4) Then
                     
                     If Direction = "Axial" Then
-                        m_Segments(i).P1 = m_Segments(i).P1 + P * Factor
+                        m_Segments(i).p1 = m_Segments(i).p1 + P * Factor
                     ElseIf Direction = "Transverse" Then
                         m_Segments(i).V1 = m_Segments(i).V1 + P * Factor
                         m_Segments(i).M1 = m_Segments(i).M1 - P * (x - x1) * Factor
@@ -575,7 +575,7 @@ Public Sub SegmentMember(Optional ComboName As Variant = "Combo 1")
                         End If
 
                         'Sum the axial forces at the start of the segment
-                        m_Segments(i).P1 = m_Segments(i).P1 + (w1 + w2) / 2 * (x2 - x1)
+                        m_Segments(i).p1 = m_Segments(i).p1 + (w1 + w2) / 2 * (x2 - x1)
 
                     ElseIf Direction = "Transverse" Then
 
@@ -620,7 +620,7 @@ Public Function Pmax(Optional ComboName As Variant = "Combo 1") As Double
         m_SolvedCombo = ComboName
     End If
     
-    Max = m_Segments(1).P1
+    Max = m_Segments(1).p1
     For i = 1 To NumSegs
         If m_Segments(i).MaxAxial > Max Then
             Max = m_Segments(i).MaxAxial
@@ -645,7 +645,7 @@ Public Function Pmin(Optional ComboName As Variant = "Combo 1") As Double
         m_SolvedCombo = ComboName
     End If
     
-    Min = m_Segments(1).P1
+    Min = m_Segments(1).p1
     For i = 1 To NumSegs
         If m_Segments(i).MinAxial < Min Then
             Min = m_Segments(i).MinAxial

@@ -17,7 +17,7 @@ Public w1 As Double        'Distributed load at the start of the segment
 Public w2 As Double        'Distributed load at the end of the segement
 Public w1_Axial As Double  'Distributed axial load at the start of the segment
 Public w2_Axial As Double  'Distributed axial load at the end of the segement
-Public P1 As Double        'Axial load at the start of the segment
+Public p1 As Double        'Axial load at the start of the segment
 Public V1 As Double        'Shear at the start of the segment
 Public M1 As Double        'Moment at the start of the segment
 Public theta1 As Double    'Slope at the start of the segment
@@ -32,7 +32,7 @@ End Function
 Public Function Axial(x As Double) As Double
     
     'Return the axial force at the location
-    Axial = P1 + (w2_Axial - w1_Axial) / (2 * Length) * x ^ 2 + w1_Axial * x
+    Axial = p1 + w1_Axial * x + (w2_Axial - w1_Axial) / (2 * Length) * x ^ 2
     
 End Function
 
@@ -73,7 +73,7 @@ Public Function MaxAxial() As Double
     
     'Declare local variables
     Dim x1 As Double, x2 As Double, x3 As Double
-    Dim P1 As Double, p2 As Double, P3 As Double
+    Dim p1 As Double, p2 As Double, P3 As Double
     
     'Determine possible locations of maximum axial force
     If w1_Axial - w2_Axial <> 0 Then
@@ -90,12 +90,12 @@ Public Function MaxAxial() As Double
     x3 = Length
     
     'Find the axial force at each location of interest
-    P1 = Axial(x1)
+    p1 = Axial(x1)
     p2 = Axial(x2)
     P3 = Axial(x3)
     
     'Return the maximum axial force
-    MaxAxial = WorksheetFunction.Max(P1, p2, P3)
+    MaxAxial = WorksheetFunction.Max(p1, p2, P3)
     
 End Function
 
@@ -104,7 +104,7 @@ Public Function MinAxial() As Double
     
     'Declare local variables
     Dim x1 As Double, x2 As Double, x3 As Double
-    Dim P1 As Double, p2 As Double, P3 As Double
+    Dim p1 As Double, p2 As Double, P3 As Double
     
     'Determine possible locations of minimum axial force
     If w1_Axial - w2_Axial <> 0 Then
@@ -121,12 +121,12 @@ Public Function MinAxial() As Double
     x3 = Length
     
     'Find the axial force at each location of interest
-    P1 = Axial(x1)
+    p1 = Axial(x1)
     p2 = Axial(x2)
     P3 = Axial(x3)
     
     'Return the minimum axial force
-    MinAxial = WorksheetFunction.Min(P1, p2, P3)
+    MinAxial = WorksheetFunction.Min(p1, p2, P3)
     
 End Function
 

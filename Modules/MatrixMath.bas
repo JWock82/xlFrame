@@ -133,23 +133,23 @@ On Error GoTo ErrorHandler:
         Wend
         
         'Eliminate all terms above and below the first nonzero term
-        Dim a As Long, b As Long
-        For a = 1 To Result.NumRows
+        Dim A As Long, b As Long
+        For A = 1 To Result.NumRows
         
-            If a <> i Then
+            If A <> i Then
             
-                If Result.GetValue(a, j) <> 0 Then
+                If Result.GetValue(A, j) <> 0 Then
                 
-                    Multiplier = -Result.GetValue(i, j) / Result.GetValue(a, j)
+                    Multiplier = -Result.GetValue(i, j) / Result.GetValue(A, j)
                     For b = 1 To Result.NumCols
                     
                         'This next "if" statement is used to eliminate precision errors by forcing an exact zero value.
                         'Mathematically the "Else" portion of this statement should do that, but it leaves a tiny
                         'precision error which will trigger the "If Result.GetValue(a, j) <> 0" statement above to equal 'True'.
                         If b = j Then
-                            Call Result.SetValue(a, b, 0)
+                            Call Result.SetValue(A, b, 0)
                         Else
-                            Call Result.SetValue(a, b, Multiplier * Result.GetValue(a, b) + Result.GetValue(i, b))
+                            Call Result.SetValue(A, b, Multiplier * Result.GetValue(A, b) + Result.GetValue(i, b))
                         End If
                         
                     Next b
@@ -158,7 +158,7 @@ On Error GoTo ErrorHandler:
                 
             End If
             
-        Next a
+        Next A
         
     Next i
     

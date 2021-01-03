@@ -77,17 +77,17 @@ Public Function FER_AxialPtLoad(P As Double, x As Double, L As Double) As Matrix
 End Function
 
 'Returns the fixed end reaction vector for a distributed axial load
-Public Function FER_AxialLinLoad(P1 As Double, p2 As Double, x1 As Double, x2 As Double, L As Double) As Matrix
+Public Function FER_AxialLinLoad(p1 As Double, p2 As Double, x1 As Double, x2 As Double, L As Double) As Matrix
     
     'Create the fixed end reaction vector
     Set FER_AxialLinLoad = New Matrix
     Call FER_AxialLinLoad.Resize(6, 1)
     
     'Populate the fixed end reaction vector
-    Call FER_AxialLinLoad.SetValue(1, 1, 1 / (6 * L) * (x1 - x2) * (3 * L * P1 + 3 * L * p2 - 2 * P1 * x1 - P1 * x2 - p2 * x1 - 2 * p2 * x2))
+    Call FER_AxialLinLoad.SetValue(1, 1, 1 / (6 * L) * (x1 - x2) * (3 * L * p1 + 3 * L * p2 - 2 * p1 * x1 - p1 * x2 - p2 * x1 - 2 * p2 * x2))
     Call FER_AxialLinLoad.SetValue(2, 1, 0)
     Call FER_AxialLinLoad.SetValue(3, 1, 0)
-    Call FER_AxialLinLoad.SetValue(4, 1, 1 / (6 * L) * (x1 - x2) * (2 * P1 * x1 + P1 * x2 + p2 * x1 + 2 * p2 * x2))
+    Call FER_AxialLinLoad.SetValue(4, 1, 1 / (6 * L) * (x1 - x2) * (2 * p1 * x1 + p1 * x2 + p2 * x1 + 2 * p2 * x2))
     Call FER_AxialLinLoad.SetValue(5, 1, 0)
     Call FER_AxialLinLoad.SetValue(6, 1, 0)
     
