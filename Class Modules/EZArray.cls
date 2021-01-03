@@ -10,7 +10,7 @@ Attribute VB_Exposed = False
 Private m_EZArray() As Variant
 
 'Resizes the array
-Public Sub Resize(M As Long, n As Long, Optional SaveValues As Boolean = True)
+Public Sub Resize(m As Long, n As Long, Optional SaveValues As Boolean = True)
     
     'Save the old matrix if necessary
     'Trying to save values in an empty array will generate an error
@@ -23,7 +23,7 @@ Public Sub Resize(M As Long, n As Long, Optional SaveValues As Boolean = True)
     End If
     
     'Resize the array
-    ReDim m_EZArray(1 To M, 1 To n) As Variant
+    ReDim m_EZArray(1 To m, 1 To n) As Variant
     
     'Initialize the array
     Dim i As Long, j As Long
@@ -36,11 +36,11 @@ Public Sub Resize(M As Long, n As Long, Optional SaveValues As Boolean = True)
     'Add values from the old array if necessary
     If SaveValues = True Then
     
-        Dim a As Long, b As Long
-        a = WorksheetFunction.Min(UBound(Temp, 1), M)   'The 'Min' function is necessary if the array is getting smaller
+        Dim A As Long, b As Long
+        A = WorksheetFunction.Min(UBound(Temp, 1), m)   'The 'Min' function is necessary if the array is getting smaller
         b = WorksheetFunction.Min(UBound(Temp, 2), n)
         
-        For i = 1 To a
+        For i = 1 To A
             For j = 1 To b
                 m_EZArray(i, j) = Temp(i, j)
             Next j
@@ -111,34 +111,34 @@ Public Sub InsertRow(i As Long)
     
 On Error GoTo ErrorHandler:
     
-        'Resize the matrix to hold one more row
-        Call Resize(NumRows + 1, NumCols, True)
+    'Resize the matrix to hold one more row
+    Call Resize(NumRows + 1, NumCols, True)
+
+    'Shift everything at or below row 'i' down one row
+    Dim A As Long, j As Long
+    A = NumRows
+    While A > i
     
-        'Shift everything at or below row 'i' down one row
-        Dim a As Long, j As Long
-        a = NumRows
-        While a > i
-        
-            For j = 1 To NumCols
-                m_EZArray(a, j) = m_EZArray(a - 1, j)
-            Next j
-            
-            a = a - 1
-            
-        Wend
-        
-        'Initialize the new row 'i' to zero
         For j = 1 To NumCols
-            m_EZArray(i, j) = 0
+            m_EZArray(A, j) = m_EZArray(A - 1, j)
         Next j
         
-        Exit Sub
+        A = A - 1
+        
+    Wend
+    
+    'Initialize the new row 'i' to zero
+    For j = 1 To NumCols
+        m_EZArray(i, j) = 0
+    Next j
+    
+    Exit Sub
         
 ErrorHandler:
         
-        'The user specified a bad index
-        MsgBox ("Error: Cannot insert new row into array at specified index.")
-        Stop
+    'The user specified a bad index
+    MsgBox ("Error: Cannot insert new row into array at specified index.")
+    Stop
         
 End Sub
 
@@ -301,15 +301,14 @@ Public Sub PrintEZArray(PrintRange As Range, Optional ClearExisting As Boolean =
     End If
     
     'Count the number of rows and columns in the array
-    Dim M As Integer, n As Integer
-    M = NumRows
+    Dim m As Integer, n As Integer
+    m = NumRows
     n = NumCols
     
     'Identify the range the array will be printed to
-    Set FittedPrintRange = PrintRange.Worksheet.Range(PrintRange.Cells(1, 1).Address, PrintRange.Cells(M, n).Address)
+    Set FittedPrintRange = PrintRange.Worksheet.Range(PrintRange.Cells(1, 1).Address, PrintRange.Cells(m, n).Address)
     
     'Print the array to the range
     FittedPrintRange = m_EZArray
     
 End Sub
-
