@@ -529,13 +529,17 @@ Private Function StructNodalForces(Optional ComboName As Variant = "Combo 1") As
             'Add the node's loads to the global node load vector
             For i = 1 To Node.NodeLoads.NumRows
                 
-                If Node.NodeLoads.GetValue(i, 1) = FX And LoadCase = Node.NodeLoads.GetValue(i, 3) Then
-                    Call StructNodalForces.SetValue((Node.ID - 1) * 3 + 1, 1, Factor * Node.NodeLoads.GetValue(i, 2))
-                ElseIf Node.NodeLoads.GetValue(i, 1) = FY And LoadCase = Node.NodeLoads.GetValue(i, 3) Then
-                    Call StructNodalForces.SetValue((Node.ID - 1) * 3 + 2, 1, Factor * Node.NodeLoads.GetValue(i, 2))
-                ElseIf Node.NodeLoads.GetValue(i, 1) = MZ And LoadCase = Node.NodeLoads.GetValue(i, 3) Then
-                    Call StructNodalForces.SetValue((Node.ID - 1) * 3 + 3, 1, Factor * Node.NodeLoads.GetValue(i, 2))
-                End If
+                With StructNodalForces
+                
+                    If Node.NodeLoads.GetValue(i, 1) = FX And LoadCase = Node.NodeLoads.GetValue(i, 3) Then
+                        Call .SetValue((Node.ID - 1) * 3 + 1, 1, .GetValue((Node.ID - 1) * 3 + 1, 1) + Factor * Node.NodeLoads.GetValue(i, 2))
+                    ElseIf Node.NodeLoads.GetValue(i, 1) = FY And LoadCase = Node.NodeLoads.GetValue(i, 3) Then
+                        Call .SetValue((Node.ID - 1) * 3 + 2, 1, .GetValue((Node.ID - 1) * 3 + 2, 1) + Factor * Node.NodeLoads.GetValue(i, 2))
+                    ElseIf Node.NodeLoads.GetValue(i, 1) = MZ And LoadCase = Node.NodeLoads.GetValue(i, 3) Then
+                        Call .SetValue((Node.ID - 1) * 3 + 3, 1, .GetValue((Node.ID - 1) * 3 + 3, 1) + Factor * Node.NodeLoads.GetValue(i, 2))
+                    End If
+                    
+                End With
                 
             Next i
         
