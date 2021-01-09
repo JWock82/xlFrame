@@ -13,7 +13,15 @@ Attribute VB_Exposed = False
 Option Explicit
 
 'Class variables
-Public Factors As Object  'A collection containing each load case name and associated load factor
+Public Factors As Object     'A collection containing each load case name and associated load factor
+Public ComboType As LC_Type  'The type of load combination (Strength or Service)
+
+'Class enumerations
+Enum LC_Type
+    Strength
+    Service
+    LoadCase
+End Enum
 
 'Adds a load case with its associated factor
 Public Sub AddLoadCase(CaseName As String, Factor As Double)
