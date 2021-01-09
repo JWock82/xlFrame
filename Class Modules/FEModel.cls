@@ -29,7 +29,7 @@ Private Solved As Boolean    'Flag indicating whether the model has been solved 
 'Types of forces
 Public Enum ForceType
     FX
-    FY
+    fy
     MZ
 End Enum
 
@@ -125,7 +125,7 @@ Public Sub EditEndReleases(MemberName As String, iRelease As Boolean, jRelease A
 End Sub
 
 'Adds a point load to a member
-Public Sub AddMemberPointLoad(MemberName As String, P As Double, x As Double, Direction As LoadDir, Optional LoadCase = "Case 1")
+Public Sub AddMemberPointLoad(MemberName As String, P As Double, x As Double, Direction As LoadDir, Optional LoadCase As Variant = "Case 1")
     
     'Step through each member
     Dim Member As Member2D
@@ -133,9 +133,9 @@ Public Sub AddMemberPointLoad(MemberName As String, P As Double, x As Double, Di
             
     'Add the member load
     If Direction = Transverse Then
-        Call Member.AddPtLoad(P, x, "Transverse")
+        Call Member.AddPtLoad(P, x, "Transverse", LoadCase)
     ElseIf Direction = Axial Then
-        Call Member.AddPtLoad(P, x, "Axial")
+        Call Member.AddPtLoad(P, x, "Axial", LoadCase)
     End If
     
     'Flag the model as unsolved
@@ -147,13 +147,13 @@ Public Sub AddMemberPointLoad(MemberName As String, P As Double, x As Double, Di
 End Sub
 
 'Adds a concentrated moment to the member
-Public Sub AddMemberMoment(MemberName As String, Moment As Double, x As Double)
+Public Sub AddMemberMoment(MemberName As String, Moment As Double, x As Double, Optional LoadCase As Variant = "Case 1")
       
     'Get the member from the `Members` dictionary
     Set Member = Members(MemberName)
       
     'Add the member moment
-    Call Member.AddMoment(Moment, x)
+    Call Member.AddMoment(Moment, x, LoadCase)
     
     'Flag the model as unsolved
     Solved = False
@@ -186,13 +186,10 @@ Public Sub AddMemberDistLoad(MemberName As String, w1 As Double, w2 As Double, O
     'Flag the model as unsolved
     Solved = False
     
-    'Exit the subroutine
-    Exit Sub
-    
 End Sub
 
 'Adds a nodal load to a node
-Public Sub AddNodeLoad(NodeName As String, Load As Double, Direction As ForceType, Optional LoadCase = "Case 1")
+Public Sub AddNodeLoad(NodeName As String, Load As Double, Direction As ForceType, Optional LoadCase As Variant = "Case 1")
     
     'Get the node to add the load to
     Dim Node As Node2D
@@ -215,10 +212,13 @@ Public Sub AddNodeLoad(NodeName As String, Load As Double, Direction As ForceTyp
 End Sub
 
 'Adds a load combination to the model
-Public Sub AddLoadCombo(ComboName As String, LoadCases As Variant, Factors As Variant)
+Public Sub AddLoadCombo(ComboName As String, LoadCases As Variant, Factors As Variant, Optional ComboType As LC_Type = Strength)
 
     'Create a new load combination object
     Dim NewCombo As New LoadCombo
+    
+    'Define the load combination type
+    NewCombo.ComboType = ComboType
     
     'Add load factors to the load combination
     Dim i As Integer, LoadCase As Variant
@@ -533,7 +533,7 @@ Private Function StructNodalForces(Optional ComboName As Variant = "Combo 1") As
                 
                     If Node.NodeLoads.GetValue(i, 1) = FX And LoadCase = Node.NodeLoads.GetValue(i, 3) Then
                         Call .SetValue((Node.ID - 1) * 3 + 1, 1, .GetValue((Node.ID - 1) * 3 + 1, 1) + Factor * Node.NodeLoads.GetValue(i, 2))
-                    ElseIf Node.NodeLoads.GetValue(i, 1) = FY And LoadCase = Node.NodeLoads.GetValue(i, 3) Then
+                    ElseIf Node.NodeLoads.GetValue(i, 1) = fy And LoadCase = Node.NodeLoads.GetValue(i, 3) Then
                         Call .SetValue((Node.ID - 1) * 3 + 2, 1, .GetValue((Node.ID - 1) * 3 + 2, 1) + Factor * Node.NodeLoads.GetValue(i, 2))
                     ElseIf Node.NodeLoads.GetValue(i, 1) = MZ And LoadCase = Node.NodeLoads.GetValue(i, 3) Then
                         Call .SetValue((Node.ID - 1) * 3 + 3, 1, .GetValue((Node.ID - 1) * 3 + 3, 1) + Factor * Node.NodeLoads.GetValue(i, 2))
@@ -1136,6 +1136,24 @@ Public Function GetMinAxial(MemberName As String, Optional ComboName As Variant 
     
     'Get the minimum axial force
     GetMinAxial = Members(MemberName).Pmin(ComboName)
+
+End Function
+
+'Returns the reaction at a node
+Public Function GetReaction(NodeName As String, Direction As ForceType, Optional ComboName As Variant = "Combo 1") As Double
+    
+    'Solve the model if necessary
+    If Solved = False Then
+        Call Analyze
+    End If
+    
+    If Direction = FX Then
+        GetReaction = Nodes(NodeName).ReactionX(ComboName)
+    ElseIf Direction = fy Then
+        GetReaction = Nodes(NodeName).ReactionY(ComboName)
+    ElseIf Direction = MZ Then
+        GetReaction = Nodes(NodeName).ReactionMZ(ComboName)
+    End If
 
 End Function
 
