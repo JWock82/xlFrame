@@ -216,7 +216,7 @@ Private Function LocalFER_Unc(Optional ComboName As Variant = "Combo 1") As Matr
     'Loop through each load case in the load combination
     Dim LoadCase As Variant, Factor As Double, i As Long
     Dim P As Double, w1 As Double, w2 As Double, x As Double, x1 As Double, x2 As Double, L As Double
-    For Each LoadCase In LoadCombos(ComboName).Factors.keys
+    For Each LoadCase In LoadCombos(ComboName).Factors.Keys
 
         'Get the load factor for this load case
         Factor = LoadCombos(ComboName).Factors(LoadCase)
@@ -372,7 +372,7 @@ Public Function GlobalForces(Optional ComboName As Variant = "Combo 1") As Matri
 End Function
 
 'Adds a point load to the member
-Public Sub AddPtLoad(P As Double, x As Double, Direction As String, Optional LoadCase As String = "Case 1")
+Public Sub AddPtLoad(P As Double, x As Double, Direction As String, Optional LoadCase As Variant = "Case 1")
     
     'Resize the "m_PtLoads" EZArray
     Call m_PtLoads.Resize(m_PtLoads.NumRows + 1, 4, True)
@@ -517,7 +517,7 @@ Public Sub SegmentMember(Optional ComboName As Variant = "Combo 1")
         m_Segments(i).M1 = EndForces.GetValue(3, 1) - EndForces.GetValue(2, 1) * x  'Moment due to shear and moment at the start of the member
         
         'Step through each load case in the specified load combination
-        For Each LoadCase In LoadCombos(ComboName).Factors.keys
+        For Each LoadCase In LoadCombos(ComboName).Factors.Keys()
 
             'Get the load factor for this load case
             Factor = LoadCombos(ComboName).Factors(LoadCase)
@@ -533,12 +533,12 @@ Public Sub SegmentMember(Optional ComboName As Variant = "Combo 1")
                 If x1 <= x And LoadCase = m_PtLoads.GetValue(j, 4) Then
                     
                     If Direction = "Axial" Then
-                        m_Segments(i).p1 = m_Segments(i).p1 + P * Factor
+                        m_Segments(i).p1 = m_Segments(i).p1 + P
                     ElseIf Direction = "Transverse" Then
-                        m_Segments(i).V1 = m_Segments(i).V1 + P * Factor
-                        m_Segments(i).M1 = m_Segments(i).M1 - P * (x - x1) * Factor
+                        m_Segments(i).V1 = m_Segments(i).V1 + P
+                        m_Segments(i).M1 = m_Segments(i).M1 - P * (x - x1)
                     ElseIf Direction = "Moment" Then
-                        m_Segments(i).M1 = m_Segments(i).M1 + P * Factor
+                        m_Segments(i).M1 = m_Segments(i).M1 + P
                     End If
                 
                 End If
