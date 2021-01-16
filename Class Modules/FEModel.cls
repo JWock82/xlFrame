@@ -150,6 +150,7 @@ End Sub
 Public Sub AddMemberMoment(MemberName As String, Moment As Double, x As Double, Optional LoadCase As Variant = "Case 1")
       
     'Get the member from the `Members` dictionary
+    Dim Member As Member2D
     Set Member = Members(MemberName)
       
     'Add the member moment
@@ -244,7 +245,7 @@ Public Sub Analyze()
     Dim Node As Node2D, NodeName As Variant, i As Long, NumSupports As Integer
     NumSupports = 0
     i = 1
-    For Each NodeName In Nodes.keys
+    For Each NodeName In Nodes.Keys
     
         Set Node = Nodes(NodeName)
         
@@ -282,11 +283,11 @@ Public Sub Analyze()
     If NumSupports = Nodes.Count * 3 Then
             
         'Set each displacement at each node to zero
-        For Each NodeName In Nodes.keys
+        For Each NodeName In Nodes.Keys
         
             Set Node = Nodes(NodeName)
             
-            For Each ComboName In LoadCombos.keys
+            For Each ComboName In LoadCombos.Keys
                 Node.DX(ComboName) = 0
                 Node.DY(ComboName) = 0
                 Node.RZ(ComboName) = 0
@@ -298,7 +299,7 @@ Public Sub Analyze()
         
         'Step through each load combination
         Dim StructDisp As Matrix
-        For Each ComboName In LoadCombos.keys
+        For Each ComboName In LoadCombos.Keys
         
             'Calculate the structure's global displacement matrix for this load combination
             Set StructDisp = MMultiply(MInvert(StructStiff), MSubtract(StructNodalForces(ComboName), StructFER(ComboName)))
@@ -377,7 +378,7 @@ Private Function StructStiff() As Matrix
     'Place terms from each member into the global stiffness matrix
     Dim Member As Member2D, MemberName As Variant, i As Long, j As Long, MemStiff As Matrix
     Dim m As Long, n As Long
-    For Each MemberName In Members.keys
+    For Each MemberName In Members.Keys
         
         Set Member = Members(MemberName)
         
@@ -450,7 +451,7 @@ Private Function StructFER(Optional ComboName As Variant = "Combo 1") As Matrix
     Dim m As Long
     
     'Place terms from each member into the global fixed end reaction vector
-    For Each MemberName In Members.keys
+    For Each MemberName In Members.Keys
         
         'Get the member from the dictionary
         Set Member = Members(MemberName)
@@ -515,13 +516,13 @@ Private Function StructNodalForces(Optional ComboName As Variant = "Combo 1") As
     
     'Place terms from each node into the nodal force vector
     Dim NodeName As Variant, Node As Node2D, LoadCase As Variant, Factor As Double, i As Long
-    For Each NodeName In Nodes.keys
+    For Each NodeName In Nodes.Keys
         
         'Get the node from the `Nodes` dictionary
         Set Node = Nodes(NodeName)
         
         'Loop through each load case in the load combination
-        For Each LoadCase In LoadCombos(ComboName).Factors.keys
+        For Each LoadCase In LoadCombos(ComboName).Factors.Keys
             
             'Get the load factor for this load case
             Factor = LoadCombos(ComboName).Factors(LoadCase)
@@ -584,12 +585,12 @@ Private Function CalcReactions()
     Dim i As Long
     
     'Calculate the reactions node by node
-    For Each NodeName In Nodes.keys
+    For Each NodeName In Nodes.Keys
     
         Set Node = Nodes(NodeName)
         
         'Step through each load combination
-        For Each ComboName In LoadCombos.keys
+        For Each ComboName In LoadCombos.Keys
             
             'Initialize reactions for this node and load combination
             Node.ReactionX(ComboName) = 0
@@ -600,7 +601,7 @@ Private Function CalcReactions()
             If Node.SupportDX = True Or Node.SupportDY = True Or Node.SupportRZ = True Then
                 
                 'Sum the member end forces at the node
-                For Each MemberName In Members.keys
+                For Each MemberName In Members.Keys
                 
                     'Get the member from the dictionary
                     Set Member = Members(MemberName)
@@ -633,7 +634,7 @@ Private Function CalcReactions()
                 For i = 1 To Node.NodeLoads.NumRows
                     
                     'Step through each load case in the current load combination
-                    For Each LoadCase In LoadCombos(ComboName).Factors.keys
+                    For Each LoadCase In LoadCombos(ComboName).Factors.Keys
                         
                         'Check to see if load `i` in the array belongs to `LoadCase`
                         If LoadCase = Node.NodeLoads.GetValue(i, 3) Then
