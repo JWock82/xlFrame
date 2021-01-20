@@ -614,7 +614,7 @@ Private Function CalcReactions()
                         
                         Node.ReactionX(ComboName) = Node.ReactionX(ComboName) + MemberF.GetValue(1, 1)
                         Node.ReactionY(ComboName) = Node.ReactionY(ComboName) + MemberF.GetValue(2, 1)
-                        Node.ReactionMZ(ComboName) = Node.ReactionY(ComboName) + MemberF.GetValue(3, 1)
+                        Node.ReactionMZ(ComboName) = Node.ReactionMZ(ComboName) + MemberF.GetValue(3, 1)
                                                 
                     ElseIf Member.jNode.Name = Node.Name Then
                         
@@ -624,7 +624,7 @@ Private Function CalcReactions()
                         
                         Node.ReactionX(ComboName) = Node.ReactionX(ComboName) + MemberF.GetValue(4, 1)
                         Node.ReactionY(ComboName) = Node.ReactionY(ComboName) + MemberF.GetValue(5, 1)
-                        Node.ReactionMZ(ComboName) = Node.ReactionY(ComboName) + MemberF.GetValue(6, 1)
+                        Node.ReactionMZ(ComboName) = Node.ReactionMZ(ComboName) + MemberF.GetValue(6, 1)
                         
                     End If
                     
