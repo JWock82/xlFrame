@@ -729,7 +729,7 @@ Public Function Mmax(Optional ComboName As Variant = "Combo 1") As Double
     
     Dim LocalF As Matrix
     Set LocalF = LocalForces(ComboName)
-    Mmax = WorksheetFunction.Max(Max, -LocalF.GetValue(3, 1), LocalF.GetValue(6, 1))
+    Mmax = WorksheetFunction.Max(Max, LocalF.GetValue(3, 1), -LocalF.GetValue(6, 1))
     
 End Function
 
@@ -754,7 +754,7 @@ Public Function Mmin(Optional ComboName As Variant = "Combo 1") As Double
     
     Dim LocalF As Matrix
     Set LocalF = LocalForces(ComboName)
-    Mmin = WorksheetFunction.Min(Min, -LocalF.GetValue(3, 1), LocalF.GetValue(6, 1))
+    Mmin = WorksheetFunction.Min(Min, LocalF.GetValue(3, 1), -LocalF.GetValue(6, 1))
     
 End Function
 

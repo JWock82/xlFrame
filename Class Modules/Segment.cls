@@ -203,7 +203,7 @@ Public Function MaxMoment() As Double
     'Find the quadratic equation parameters
     A = (w1 - w2) / (2 * Length)
     b = -w1
-    c = V1
+    c = -V1
     
     'Determine possible locations of maximum moment
     If A = 0 Then
@@ -254,7 +254,7 @@ Public Function MinMoment() As Double
     'Find the quadratic equation parameters
     A = (w1 - w2) / (2 * Length)
     b = -w1
-    c = V1
+    c = -V1
     
     'Determine possible locations of minimum moment
     If A = 0 Then
