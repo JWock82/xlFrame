@@ -1,4 +1,8 @@
 # xlFrame
+![GitHub all releases](https://img.shields.io/github/downloads/JWock82/PyNite/total)
+![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/JWock82/xlFrame)
+![GitHub](https://img.shields.io/github/license/JWock82/xlFrame)
+
 A free VBA library to make structural analysis easy in Microsoft Excel.
 
 ## Introduction
