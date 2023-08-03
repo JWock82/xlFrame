@@ -25,7 +25,7 @@ Public Sub Resize(M As Long, n As Long, Optional SaveValues As Boolean = True)
     'Resize the array
     ReDim m_EZArray(1 To M, 1 To n) As Variant
     
-    'Initialize the array
+    'Initialize the array with zeros
     Dim i As Long, j As Long
     For i = 1 To UBound(m_EZArray, 1)
         For j = 1 To UBound(m_EZArray, 2)
@@ -36,12 +36,12 @@ Public Sub Resize(M As Long, n As Long, Optional SaveValues As Boolean = True)
     'Add values from the old array if necessary
     If SaveValues = True Then
     
-        Dim a As Long, b As Long
+        Dim a As Long, B As Long
         a = WorksheetFunction.Min(UBound(Temp, 1), M)   'The 'Min' function is necessary if the array is getting smaller
-        b = WorksheetFunction.Min(UBound(Temp, 2), n)
+        B = WorksheetFunction.Min(UBound(Temp, 2), n)
         
         For i = 1 To a
-            For j = 1 To b
+            For j = 1 To B
                 m_EZArray(i, j) = Temp(i, j)
             Next j
         Next i
@@ -83,13 +83,18 @@ ErrorHandler:
 End Function
 
 'Sets a value at a specified index
-Public Sub SetValue(i As Long, j As Long, Value As Variant)
+Public Sub SetValue(i As Long, j As Long, Value As Variant, Optional ResizeIfNeeded As Boolean = False)
 
     If i <= NumRows And j <= NumCols Then
         m_EZArray(i, j) = Value
     Else
-        MsgBox ("Error: Specified array index does not exist")
-        Stop
+        If ResizeIfNeeded Then
+            Call Resize(WorksheetFunction.Max(NumRows, i), WorksheetFunction.Max(NumCols, j))
+            m_EZArray(i, j) = Value
+        Else
+            MsgBox ("Error: Specified array index does not exist")
+            Stop
+        End If
     End If
     
 End Sub
@@ -142,7 +147,7 @@ ErrorHandler:
         
 End Sub
 
-'Inserts a new column of zeros at index 'j'
+'Inserts a new column of zeros at index 'i'
 Public Sub InsertCol(j As Long)
 
 On Error GoTo ErrorHandler:
@@ -151,15 +156,15 @@ On Error GoTo ErrorHandler:
     Call Resize(NumRows, NumCols + 1, True)
     
     'Shift everything at or to the right of column 'j' to the right one column
-    Dim b As Long, i As Long
-    b = NumCols
-    While b > j
+    Dim B As Long, i As Long
+    B = NumCols
+    While B > j
         
         For i = 1 To NumRows
-            m_EZArray(i, b) = m_EZArray(i, b - 1)
+            m_EZArray(i, B) = m_EZArray(i, B - 1)
         Next i
             
-        b = b - 1
+        B = B - 1
             
     Wend
         

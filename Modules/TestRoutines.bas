@@ -30,16 +30,20 @@ Private Sub FEM_Problem_3_27()
     Call myModel.EditEndReleases("M3", False, True)
     
     'Define the joint loads
-    Call myModel.AddNodeLoad("N3", 5000, -10000, 0)
+    Call myModel.AddNodeLoad("N3", 5000, FX, "D")
+    Call myModel.AddNodeLoad("N3", -10000, FY, "D")
+    
+    'Define a load combination (unfactored dead load in this case)
+    Call myModel.AddLoadCombo("Combo 1", Array("D"), Array(1))
     
     'Clear 'Sheet1'
     Sheet1.Cells.Clear
     
     'Print the displacements at 'N3'
     Sheet1.Range("A1") = "Node N3 Displacements"
-    Sheet1.Range("A2") = myModel.GetDisp("N3", DX)
-    Sheet1.Range("A3") = myModel.GetDisp("N3", DY)
-    Sheet1.Range("A4") = myModel.GetDisp("N3", RZ)
+    Sheet1.Range("A2") = myModel.GetDisp("N3", DX, "Combo 1")
+    Sheet1.Range("A3") = myModel.GetDisp("N3", DY, "Combo 1")
+    Sheet1.Range("A4") = myModel.GetDisp("N3", RZ, "Combo 1")
     
     'Show equilibrium at 'N3' - Reactions should equal 0 at 'N3')
     Sheet1.Range("A6") = "Sum of Forces and Moments at N3"
@@ -83,15 +87,18 @@ Private Sub FEM_Example_4_10()
     Call myModel.EditEndReleases("M1", False, True)
     
     'Define the joint load
-    Call myModel.AddNodeLoad("N2", 0, -5, 0)
+    Call myModel.AddNodeLoad("N2", -5, FY, "L")
+    
+    'Define load combinations
+    Call myModel.AddLoadCombo("Live", Array("L"), Array("1"))
     
     'Clear 'Sheet1'
     Sheet1.Cells.Clear
     
     'Get the stiffness matrices for 'M1' and 'M2'
     Dim Stiffness1 As Matrix, Stiffness2 As Matrix
-    Set Stiffness1 = myModel.Members(1).LocalStiff
-    Set Stiffness2 = myModel.Members(2).LocalStiff
+    Set Stiffness1 = myModel.Members("M1").LocalStiff
+    Set Stiffness2 = myModel.Members("M2").LocalStiff
     
     'Remove the axial load degrees of freedom from the matrix
     Call Stiffness1.RemoveRow(4)
@@ -119,7 +126,7 @@ Private Sub FEM_Example_4_10()
     
     'Get the local end forces for "M1"
     Dim EndForces As Matrix
-    Set EndForces = myModel.Members(1).LocalForces
+    Set EndForces = myModel.Members("M1").LocalForces("Live")
     
     'Remove the axial load degrees of freedom from the vector
     Call EndForces.RemoveRow(4)
@@ -168,10 +175,13 @@ Private Sub SA_Example_5_15()
     Call myModel.EditSupport("E", True, True, False)
     
     'Add member distributed loads
-    Call myModel.AddMemberDistLoad("M2", 7.68, 7.68, , , Transverse)
-    Call myModel.AddMemberDistLoad("M3", 7.68, 7.68, , , Transverse)
-    Call myModel.AddMemberDistLoad("M2", -5.76, -5.76, , , Axial)
-    Call myModel.AddMemberDistLoad("M3", 5.76, 5.76, , , Axial)
+    Call myModel.AddMemberDistLoad("M2", 7.68, 7.68, , , Transverse, "Case 1")
+    Call myModel.AddMemberDistLoad("M3", 7.68, 7.68, , , Transverse, "Case 1")
+    Call myModel.AddMemberDistLoad("M2", -5.76, -5.76, , , Axial, "Case 1")
+    Call myModel.AddMemberDistLoad("M3", 5.76, 5.76, , , Axial, "Case 1")
+    
+    'Add a load combination
+    Call myModel.AddLoadCombo("Combo 1", Array("Case 1"), Array(1))
     
     'Clear old results
     Sheet1.Cells.Clear
@@ -182,24 +192,24 @@ Private Sub SA_Example_5_15()
     Range("B2").Value = "Mmax"
     Range("C2").Value = "Mmin"
     Range("A3").Value = "M2"
-    Range("B3").Value = myModel.GetMaxMoment("M2")
-    Range("C3").Value = myModel.GetMinMoment("M2")
+    Range("B3").Value = myModel.GetMaxMoment("M2", "Combo 1")
+    Range("C3").Value = myModel.GetMinMoment("M2", "Combo 1")
     Range("A4").Value = "M3"
-    Range("B4").Value = myModel.GetMaxMoment("M3")
-    Range("C4").Value = myModel.GetMinMoment("M3")
+    Range("B4").Value = myModel.GetMaxMoment("M3", "Combo 1")
+    Range("C4").Value = myModel.GetMinMoment("M3", "Combo 1")
     Range("A5").Value = "M4"
-    Range("B5").Value = myModel.GetMaxMoment("M4")
-    Range("C5").Value = myModel.GetMinMoment("M4")
-    Range("D5").Value = myModel.GetMaxShear("M4")
-    Range("E5").Value = myModel.GetMinShear("M4")
+    Range("B5").Value = myModel.GetMaxMoment("M4", "Combo 1")
+    Range("C5").Value = myModel.GetMinMoment("M4", "Combo 1")
+    Range("D5").Value = myModel.GetMaxShear("M4", "Combo 1")
+    Range("E5").Value = myModel.GetMinShear("M4", "Combo 1")
     
     'Print force diagrams
     Range("A7").Value = "M2 Moment Diagram"
-    Call myModel.GetMomentDiagram("M2").PrintEZArray(Range("A8"))
+    Call myModel.GetMomentDiagram("M2", "Combo 1").PrintEZArray(Range("A8"))
     Range("D7").Value = "M3 Shear Diagram"
-    Call myModel.GetShearDiagram("M3").PrintEZArray(Range("D8"))
+    Call myModel.GetShearDiagram("M3", "Combo 1").PrintEZArray(Range("D8"))
     Range("G7").Value = "M2 Axial Diagram"
-    Call myModel.GetAxialDiagram("M2").PrintEZArray(Range("G8"))
+    Call myModel.GetAxialDiagram("M2", "Combo 1").PrintEZArray(Range("G8"))
     
 End Sub
 
@@ -241,23 +251,26 @@ Private Sub FEM_Problem_5_26()
     Call myModel.AddMemberDistLoad("M4", 1000 / 12, 1000 / 12)
     Call myModel.AddMemberDistLoad("M5", 1000 / 12, 1000 / 12)
     
+    'Add a load combination
+    Call myModel.AddLoadCombo("Combo 1", Array("Case 1", "Case 2"), Array(1, 1.2))
+    
     'Clear old results
     Sheet1.Cells.Clear
     
     'Support Reactions
     Sheet1.Range("A1") = "Node N1 and N4 Reactions"
-    Sheet1.Range("A2") = myModel.GetReaction("N1", FX)
-    Sheet1.Range("A3") = myModel.GetReaction("N1", FY)
-    Sheet1.Range("A4") = myModel.GetReaction("N1", MZ)
-    Sheet1.Range("B2") = myModel.GetReaction("N4", FX)
-    Sheet1.Range("B3") = myModel.GetReaction("N4", FY)
-    Sheet1.Range("B4") = myModel.GetReaction("N4", MZ)
+    Sheet1.Range("A2") = myModel.GetReaction("N1", FX, "Combo 1")
+    Sheet1.Range("A3") = myModel.GetReaction("N1", FY, "Combo 1")
+    Sheet1.Range("A4") = myModel.GetReaction("N1", MZ, "Combo 1")
+    Sheet1.Range("B2") = myModel.GetReaction("N4", FX, "Combo 1")
+    Sheet1.Range("B3") = myModel.GetReaction("N4", FY, "Combo 1")
+    Sheet1.Range("B4") = myModel.GetReaction("N4", MZ, "Combo 1")
     
     'Joint Displacements
     Sheet1.Range("A6") = "Node N2 Displacements"
-    Sheet1.Range("A7") = myModel.GetDisp("N2", DX)
-    Sheet1.Range("A8") = myModel.GetDisp("N2", DY)
-    Sheet1.Range("A9") = myModel.GetDisp("N2", RZ)
+    Sheet1.Range("A7") = myModel.GetDisp("N2", DX, "Combo 1")
+    Sheet1.Range("A8") = myModel.GetDisp("N2", DY, "Combo 1")
+    Sheet1.Range("A9") = myModel.GetDisp("N2", RZ, "Combo 1")
     
 End Sub
 
@@ -287,13 +300,16 @@ Private Sub SA_Example_6_4()
     Call myModel.AddMemberPointLoad("M1", 60, 20 * 12, Transverse)
     Call myModel.AddMemberPointLoad("M1", 40, 30 * 12, Transverse)
     
+    'Add a load combination
+    Call myModel.AddLoadCombo("Combo 1", Array("Case 1"), Array(1))
+    
     'Clear old results
     Sheet1.Cells.Clear
     
     'Print member displacements
     Sheet1.Range("A1") = "Member Displacements"
-    Sheet1.Range("A2") = myModel.GetMemberDisp("M1", 20 * 12)
-    Sheet1.Range("A3") = myModel.GetMemberDisp("M1", 30 * 12)
+    Sheet1.Range("A2") = myModel.GetMemberDisp("M1", 20 * 12, "Combo 1")
+    Sheet1.Range("A3") = myModel.GetMemberDisp("M1", 30 * 12, "Combo 1")
     
 End Sub
 
@@ -310,6 +326,9 @@ Private Sub DebugProgram()
     Call myModel.AddMemberMoment("M1", 20, 5)
     Call myModel.EditSupport("N1", True, True, True)
     'Call myModel.EditSupport("N2", True, True, True)
+    
+    'Add a load combination
+    Call myModel.AddLoadCombo("Combo 1", Array("Case 1"), Array(1))
     
     Sheet1.Cells.Clear
     

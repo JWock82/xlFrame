@@ -1,5 +1,6 @@
 Attribute VB_Name = "ArrayTools"
 
+
 'Adds an item to the end of a 1D array
 Public Sub AddItem(ByRef ArrayArg() As Variant, ItemToAdd As Variant)
     
@@ -217,13 +218,13 @@ End Function
 Public Sub PrintArray(ArrayToPrint() As Variant, PrintRange As Range)
     
     'Count the number of rows and columns in the array
-    Dim M As Integer, n As Integer
-    M = CountRows(ArrayToPrint)
+    Dim m As Integer, n As Integer
+    m = CountRows(ArrayToPrint)
     n = CountColumns(ArrayToPrint)
     
     'Identify the range the array will be printed to
     Dim FittedPrintRange As Range
-    Set FittedPrintRange = PrintRange.Worksheet.Range(PrintRange.Cells(1, 1).Address, PrintRange.Cells(M, n).Address)
+    Set FittedPrintRange = PrintRange.Worksheet.Range(PrintRange.Cells(1, 1).Address, PrintRange.Cells(m, n).Address)
     
     'Print the array to the range
     FittedPrintRange = ArrayToPrint

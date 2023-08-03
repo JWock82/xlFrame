@@ -20,95 +20,38 @@ Option Explicit
 
 'Class variables
 'Member/node ID's
-Private m_Name As String                    'Member name
-Private m_MemberID As Integer               'Member ID that can be assigned in code-behind to help track the member
-Private m_iNode As Node2D                    'i-node
-Private m_jNode As Node2D                    'j-node
+Public Name As String                       'Member name
+Public MemberID As Integer                  'Member ID that can be assigned in code-behind to help track the member
+Public iNode As Node2D                      'i-node
+Public jNode As Node2D                      'j-node
 
 'Member properties
-Private m_E As Double                       'Modulus of elasticity
-Private m_I As Double                       'Moment of inertia
-Private m_A As Double                       'Cross sectional area
+Public Elasticity As Double                 'Modulus of elasticity
+Public Inertia As Double                    'Moment of inertia
+Public Area As Double                       'Cross sectional area
 
 'End releases
 Private m_Releases(1 To 6) As Boolean       'Array representing member end releases
 Private m_Condense As Boolean               'Flag indicating whether static condensation is required
 
 'Loads
-Private m_Loads As New EZArray              'Array representing member loads
-Private m_FER As New Matrix                 'Member local fixed end force vector
+Private m_PtLoads As New EZArray            'An array of point loads and moments applied to the element (Direction, P, x, LoadCase="Case 1") or (Direction, M, x, LoadCase="Case 1")
+Private m_DistLoads As New EZArray          'A list of linear distributed loads applied to the element (Direction, w1, w2, x1, x2, LoadCase='Case 1')
+
+'Load combinations
+Public LoadCombos As Object                 'A dictionary of load combinations in the model this member belongs to
+Private m_SolvedCombo As String             'The name of the currently solve load combination
 
 'Internal forces
 Private m_Segments() As New Segment         'Array representing mathematically continuous segments of the member
-Private m_NumSegs As Integer                'Number of mathematically continuous segments in the member
-
-'Class properties
-Property Get NumSegs() As Integer
-    NumSegs = m_NumSegs
-End Property
+Public NumSegs As Integer                   'Number of mathematically continuous segments in the member
 
 Property Get Segments() As Segment()
     Segments = m_Segments
 End Property
-  
-Property Let Name(Value As String)
-    m_Name = Value
-End Property
-
-Property Get Name() As String
-    Name = m_Name
-End Property
-
-Property Let MemberID(Value As Integer)
-    m_MemberID = Value
-End Property
-
-Property Get MemberID() As Integer
-    MemberID = m_MemberID
-End Property
-
-Property Set iNode(Value As Node2D)
-    Set m_iNode = Value
-End Property
-
-Property Get iNode() As Node2D
-    Set iNode = m_iNode
-End Property
-
-Property Set jNode(Value As Node2D)
-    Set m_jNode = Value
-End Property
-
-Property Get jNode() As Node2D
-    Set jNode = m_jNode
-End Property
-
-Property Let Elasticity(Value As Double)
-    m_E = Value
-End Property
-
-Property Get Elasticity() As Double
-    Elasticity = m_E
-End Property
-
-Property Let Inertia(Value As Double)
-    m_I = Value
-End Property
-
-Property Get Inertia() As Double
-    Inertia = m_I
-End Property
-
-Property Let Area(Value As Double)
-    m_A = Value
-End Property
-
-Property Get Area() As Double
-    Area = m_A
-End Property
 
 Property Get Length() As Double
-    Length = Sqr((m_jNode.XCoord - m_iNode.XCoord) ^ 2 + (m_jNode.YCoord - m_iNode.YCoord) ^ 2)
+    Length = Sqr((jNode.XCoord - iNode.XCoord) ^ 2 + (jNode.YCoord - iNode.YCoord) ^ 2)
 End Property
 
 'Initializes the class prior to use
@@ -125,6 +68,9 @@ Private Sub Class_Initialize()
     
     'Initialize the static condensation flag
     m_Condense = False
+        
+    'Initialize the solved load combination value
+    m_SolvedCombo = vbNullString
     
 End Sub
 
@@ -135,16 +81,15 @@ Public Sub ClearLoads()
     Dim i As Integer
     
     'Initialize the segment count to zero
-    m_NumSegs = 0
-    
-    'Set all terms in the FER vector to zero
-    Call m_FER.Resize(6, 1, False)
+    NumSegs = 0
     
     'Delete the old array of loads
-    Set m_Loads = Nothing
+    Set m_PtLoads = Nothing
+    Set m_DistLoads = Nothing
     
     'Create a new array of loads
-    Set m_Loads = New EZArray
+    Set m_PtLoads = New EZArray
+    Set m_DistLoads = New EZArray
     
 End Sub
 
@@ -180,8 +125,8 @@ Public Function TransMatrix() As Matrix
 
     'Find the direction cosines (member orientation)
     Dim DirCos As Double, DirSin As Double
-    DirCos = (m_jNode.XCoord - m_iNode.XCoord) / Length
-    DirSin = (m_jNode.YCoord - m_iNode.YCoord) / Length
+    DirCos = (jNode.XCoord - iNode.XCoord) / Length
+    DirSin = (jNode.YCoord - iNode.YCoord) / Length
     
     'Initialize the transformation matrix
     Set TransMatrix = New Matrix
@@ -262,26 +207,92 @@ Public Function GlobalStiff() As Variant
     
 End Function
 
+Private Function LocalFER_Unc(Optional ComboName As Variant = "Combo 1") As Matrix
+
+    'Initialize the fixed end reaction vector
+    Dim Result As New Matrix
+    Call Result.Resize(6, 1)
+
+    'Loop through each load case in the load combination
+    Dim LoadCase As Variant, Factor As Double, i As Long
+    Dim P As Double, w1 As Double, w2 As Double, x As Double, x1 As Double, x2 As Double, L As Double
+    For Each LoadCase In LoadCombos(ComboName).Factors.Keys
+
+        'Get the load factor for this load case
+        Factor = LoadCombos(ComboName).Factors(LoadCase)
+
+        'Sum the fixed end reactions for the point loads and moments
+        For i = 1 To m_PtLoads.NumRows
+
+            'Check if the current point load corresponds to the current load case
+            If m_PtLoads.GetValue(i, 4) = LoadCase Then
+
+                'Get the load parameters
+                P = m_PtLoads.GetValue(i, 2) * Factor 'Note that 'P' could be a force or moment
+                x = m_PtLoads.GetValue(i, 3)
+                L = Length
+
+                If m_PtLoads.GetValue(i, 1) = "Axial" Then
+                    Set Result = MAdd(Result, FER_AxialPtLoad(P, x, L))
+                ElseIf m_PtLoads.GetValue(i, 1) = "Transverse" Then
+                    Set Result = MAdd(Result, FER_PtLoad(P, x, L))
+                ElseIf m_PtLoads.GetValue(i, 1) = "Moment" Then
+                    Set Result = MAdd(Result, FER_Moment(P, x, L))
+                End If
+
+            End If
+
+        Next i
+
+        'Sum the fixed end reactions for the distributed loads
+        For i = 1 To m_DistLoads.NumRows
+
+            'Check if the current distributed load corresponds to the current load case
+            If m_DistLoads.GetValue(i, 6) = LoadCase Then
+
+                'Get the load parameters
+                w1 = m_DistLoads.GetValue(i, 2) * Factor 'Note that 'w1' could be a transverse or axial load
+                w2 = m_DistLoads.GetValue(i, 3) * Factor 'Note that 'w2' could be a transverse or axial load
+                x1 = m_DistLoads.GetValue(i, 4)
+                x2 = m_DistLoads.GetValue(i, 5)
+                L = Length
+                
+                If m_DistLoads.GetValue(i, 1) = "Axial" Then
+                    Set Result = MAdd(Result, FER_AxialLinLoad(w1, w2, x1, x2, L))
+                ElseIf m_DistLoads.GetValue(i, 1) = "Transverse" Then
+                    Set Result = MAdd(Result, FER_LinLoad(w1, w2, x1, x2, L))
+                End If
+
+            End If
+
+        Next i
+
+    Next LoadCase
+    
+    Set LocalFER_Unc = Result
+
+End Function
+
 'Returns the local fixed end reaction vector
-Public Function LocalFER(Optional Condensed As Boolean = True) As Matrix
+Public Function LocalFER(Optional ComboName As Variant = "Combo 1", Optional Condensed As Boolean = True) As Matrix
     
     'Determine if the local fixed end reaction vector requires static condensation
     If Condensed = True Then
         
         'Condense the local fixed end reaction vector
-        Set LocalFER = CondenseFER(m_FER, LocalStiff(False), m_Releases)
+        Set LocalFER = CondenseFER(LocalFER_Unc(ComboName), LocalStiff(False), m_Releases)
         
     Else
     
         'Get the local fixed end reaction vector
-        Set LocalFER = m_FER
+        Set LocalFER = LocalFER_Unc(ComboName)
         
     End If
     
 End Function
 
 'Returns the global fixed end reaction vector
-Public Function GlobalFER() As Matrix
+Public Function GlobalFER(Optional ComboName As Variant = "Combo 1") As Matrix
     
     'Transpose the transformation matrix
     Dim M1 As Matrix
@@ -289,7 +300,7 @@ Public Function GlobalFER() As Matrix
     
     'Get the local fixed end reaction vector
     Dim M2 As Matrix
-    Set M2 = LocalFER(True)
+    Set M2 = LocalFER(ComboName, True)
     
     'Multiply the local fixed end reaction vector by the transposed transformation matrix
     Set GlobalFER = MMultiply(M1, M2)
@@ -297,31 +308,31 @@ Public Function GlobalFER() As Matrix
 End Function
 
 'Returns the local displacement vector
-Public Function LocalDisp() As Matrix
+Public Function LocalDisp(Optional ComboName As Variant = "Combo 1") As Matrix
     
     'Calculate the local displacement vector
-    Set LocalDisp = MMultiply(TransMatrix, GlobalDisp)
+    Set LocalDisp = MMultiply(TransMatrix, GlobalDisp(ComboName))
     
 End Function
 
 'Returns the global displacement vector
 'The nodal displacements must have been solved for prior to calling this function
-Public Function GlobalDisp() As Matrix
+Public Function GlobalDisp(Optional ComboName As Variant = "Combo 1") As Matrix
     
     'Generate the global displacement vector
     Set GlobalDisp = New Matrix
     Call GlobalDisp.Resize(6, 1, False)
-    Call GlobalDisp.SetValue(1, 1, iNode.DX)
-    Call GlobalDisp.SetValue(2, 1, iNode.DY)
-    Call GlobalDisp.SetValue(3, 1, iNode.RZ)
-    Call GlobalDisp.SetValue(4, 1, jNode.DX)
-    Call GlobalDisp.SetValue(5, 1, jNode.DY)
-    Call GlobalDisp.SetValue(6, 1, jNode.RZ)
+    Call GlobalDisp.SetValue(1, 1, iNode.DX(ComboName))
+    Call GlobalDisp.SetValue(2, 1, iNode.DY(ComboName))
+    Call GlobalDisp.SetValue(3, 1, iNode.RZ(ComboName))
+    Call GlobalDisp.SetValue(4, 1, jNode.DX(ComboName))
+    Call GlobalDisp.SetValue(5, 1, jNode.DY(ComboName))
+    Call GlobalDisp.SetValue(6, 1, jNode.RZ(ComboName))
     
 End Function
 
 'Returns the local member end force vector
-Public Function LocalForces() As Matrix
+Public Function LocalForces(Optional ComboName As Variant = "Combo 1") As Matrix
     
     'Declare local variables
     Dim M1 As Matrix, M2 As Matrix, M3 As Matrix, M4 As Matrix
@@ -330,10 +341,10 @@ Public Function LocalForces() As Matrix
     Set M1 = LocalStiff(True)
     
     'Get the local displacement vector
-    Set M2 = LocalDisp
+    Set M2 = LocalDisp(ComboName)
     
     'Get the local FER vector
-    Set M3 = LocalFER(True)
+    Set M3 = LocalFER(ComboName, True)
     
     'Multiply the local displacement vector by the local stiffness matrix
     Set M4 = MMultiply(M1, M2)
@@ -344,7 +355,7 @@ Public Function LocalForces() As Matrix
 End Function
 
 'Returns the global member end force vector
-Public Function GlobalForces() As Matrix
+Public Function GlobalForces(Optional ComboName As Variant = "Combo 1") As Matrix
     
     'Declare local variables
     Dim M1 As Matrix, M2 As Matrix
@@ -353,83 +364,54 @@ Public Function GlobalForces() As Matrix
     Set M1 = MTranspose(TransMatrix)
     
     'Get the local member end force vector
-    Set M2 = LocalForces
+    Set M2 = LocalForces(ComboName)
     
     'Multiply the local member end force vector by the transposed transformation matrix
     Set GlobalForces = MMultiply(M1, M2)
         
 End Function
 
-'Adds the fixed end reactions for a point load to the FER vector and places the load in the load array
-Public Sub AddPtLoad(P As Double, x As Double, Direction As String)
+'Adds a point load to the member
+Public Sub AddPtLoad(P As Double, x As Double, Direction As String, Optional LoadCase As Variant = "Case 1")
     
-    'Resize the "m_Loads" array
-    Call m_Loads.Resize(m_Loads.NumRows + 1, 7, True)
+    'Resize the "m_PtLoads" EZArray
+    Call m_PtLoads.Resize(m_PtLoads.NumRows + 1, 4, True)
     
-    'Add the load to the "m_Loads" array
-    Call m_Loads.SetValue(m_Loads.NumRows, 1, 0)
-    Call m_Loads.SetValue(m_Loads.NumRows, 2, 0)
-    Call m_Loads.SetValue(m_Loads.NumRows, 3, P)
-    Call m_Loads.SetValue(m_Loads.NumRows, 4, 0)
-    Call m_Loads.SetValue(m_Loads.NumRows, 5, x)
-    Call m_Loads.SetValue(m_Loads.NumRows, 6, 0)
-    Call m_Loads.SetValue(m_Loads.NumRows, 7, Direction)
-    
-    'Add the fixed end reactions to the FER vector
-    If Direction = "Transverse" Then
-        Set m_FER = MAdd(m_FER, FER_PtLoad(P, x, Length))
-    ElseIf Direction = "Axial" Then
-        Set m_FER = MAdd(m_FER, FER_AxialPtLoad(P, x, Length))
-    End If
+    'Add the load to the "m_PtLoads" EZArray
+    Call m_PtLoads.SetValue(m_PtLoads.NumRows, 1, Direction)
+    Call m_PtLoads.SetValue(m_PtLoads.NumRows, 2, P)
+    Call m_PtLoads.SetValue(m_PtLoads.NumRows, 3, x)
+    Call m_PtLoads.SetValue(m_PtLoads.NumRows, 4, LoadCase)
     
 End Sub
 
-'Adds the fixed end reactions for a distributed load to the FER vector and places the load in the load vector
-Public Sub AddLinLoad(w1 As Double, w2 As Double, x1 As Double, x2 As Double, Direction As String)
+'Adds a distributed load to the member
+Public Sub AddLinLoad(w1 As Double, w2 As Double, x1 As Double, x2 As Double, Direction As String, Optional LoadCase As Variant = "Case 1")
     
-    'Resize the "m_Loads" array
-    Call m_Loads.Resize(m_Loads.NumRows + 1, 7)
+    'Resize the "m_DistLoads" EZArray
+    Call m_DistLoads.Resize(m_DistLoads.NumRows + 1, 6, True)
     
-    'Add the load to the "m_Loads" array
-    Call m_Loads.SetValue(m_Loads.NumRows, 1, w1)
-    Call m_Loads.SetValue(m_Loads.NumRows, 2, w2)
-    Call m_Loads.SetValue(m_Loads.NumRows, 3, 0)
-    Call m_Loads.SetValue(m_Loads.NumRows, 4, 0)
-    Call m_Loads.SetValue(m_Loads.NumRows, 5, x1)
-    Call m_Loads.SetValue(m_Loads.NumRows, 6, x2)
-    Call m_Loads.SetValue(m_Loads.NumRows, 7, Direction)
-    
-    'Add the fixed end reactions to the FER vector
-    If Direction = "Transverse" Then
-        Set m_FER = MAdd(m_FER, FER_LinLoad(w1, w2, x1, x2, Length))
-    Else
-        Set m_FER = MAdd(m_FER, FER_AxialLinLoad(w1, w2, x1, x2, Length))
-    End If
+    'Add the load to the "m_DistLoads" array
+    Call m_DistLoads.SetValue(m_DistLoads.NumRows, 1, Direction)
+    Call m_DistLoads.SetValue(m_DistLoads.NumRows, 2, w1)
+    Call m_DistLoads.SetValue(m_DistLoads.NumRows, 3, w2)
+    Call m_DistLoads.SetValue(m_DistLoads.NumRows, 4, x1)
+    Call m_DistLoads.SetValue(m_DistLoads.NumRows, 5, x2)
+    Call m_DistLoads.SetValue(m_DistLoads.NumRows, 6, LoadCase)
     
 End Sub
 
 'Adds the fixed end reactions for a moment to the FER vector and places the load in the load vector
-Public Sub AddMoment(Moment As Double, Location As Double)
+Public Sub AddMoment(m As Double, x As Double, Optional LoadCase As Variant = "Case 1")
     
-    'Declare variables
-    Dim NewRxns() As Variant
-    Dim Temp() As Variant
-    Dim i As Integer, j As Integer
+    'Resize the "m_PtLoads" EZArray
+    Call m_PtLoads.Resize(m_PtLoads.NumRows + 1, 4, True)
     
-    'Resize the "m_Loads" array
-    Call m_Loads.Resize(m_Loads.NumRows + 1, 7)
-    
-    'Add the load to the "m_Loads" array
-    Call m_Loads.SetValue(m_Loads.NumRows, 1, 0)
-    Call m_Loads.SetValue(m_Loads.NumRows, 2, 0)
-    Call m_Loads.SetValue(m_Loads.NumRows, 3, 0)
-    Call m_Loads.SetValue(m_Loads.NumRows, 4, Moment)
-    Call m_Loads.SetValue(m_Loads.NumRows, 5, Location)
-    Call m_Loads.SetValue(m_Loads.NumRows, 6, 0)
-    Call m_Loads.SetValue(m_Loads.NumRows, 7, vbNullString)
-    
-    'Add the fixed end reactions to the FER vector
-    Set m_FER = MAdd(m_FER, FER_Moment(Moment, Location, Length))
+    'Add the load to the "m_PtLoads" EZArray
+    Call m_PtLoads.SetValue(m_PtLoads.NumRows, 1, "Moment")
+    Call m_PtLoads.SetValue(m_PtLoads.NumRows, 2, m)
+    Call m_PtLoads.SetValue(m_PtLoads.NumRows, 3, x)
+    Call m_PtLoads.SetValue(m_PtLoads.NumRows, 4, LoadCase)
     
 End Sub
 
@@ -441,265 +423,361 @@ Public Sub AddDisplacement(Index As Integer, Displacement As Double)
     
 End Sub
 
-'Segments the member (and loads) into continuous segments
-Public Sub SegmentMember()
-    
-    'Declare local variables
-    Dim i As Long, j As Long
+'Divides the element up into mathematically continuous segments
+Public Sub SegmentMember(Optional ComboName As Variant = "Combo 1")
+
+    'Create an array of member load discontinuity locations
     Dim Discont() As Variant
-    Dim w1 As Double, w2 As Double, P As Double, M As Double
-    Dim x As Double, x1 As Double, x2 As Double
-    Dim Direction As String
-    
-    'Estimate the number of continuous segments in the beam
-    m_NumSegs = 1 + m_Loads.NumRows * 2
-    
-    'Start an array of discontinuity locations
-    ReDim Discont(1 To m_NumSegs + 1)
+    ReDim Discont(1 To 2 + m_PtLoads.NumRows + m_DistLoads.NumRows * 2)
     Discont(1) = 0
     Discont(2) = Length
     
-    'Step through each load on the member
-    For i = 1 To m_Loads.NumRows
-        'Store the 2 discontinuity locations in the array
-        Discont(i * 2 + 1) = m_Loads.GetValue(i, 5)
-        Discont(i * 2 + 2) = m_Loads.GetValue(i, 6)
+    'Declare/initialize variables used in the next two `For` loops
+    Dim i As Long
+    Dim NumPtLoads As Integer
+    NumPtLoads = m_PtLoads.NumRows
+
+    'Step through each point load on the member
+    For i = 1 To m_PtLoads.NumRows
+        'Store the discontinuity location in the array
+        Discont(2 + i) = m_PtLoads.GetValue(i, 3)
     Next i
     
-    'Sort the array and eliminate duplicate values
+    'Step through each distributed load on the member
+    For i = 1 To m_DistLoads.NumRows
+        'Store the discontinuity locations in the array
+        Discont(2 + NumPtLoads + (2 * i - 1)) = m_DistLoads.GetValue(i, 4)
+        Discont(2 + NumPtLoads + (2 * i)) = m_DistLoads.GetValue(i, 5)
+    Next i
+
+    'Eliminate duplicate values and then sort the array
     Call RemoveDuplicates(Discont)
     Call SortAscending(Discont)
     
-    'Create an array of segments
-    m_NumSegs = UBound(Discont) - LBound(Discont)
-    ReDim m_Segments(1 To m_NumSegs)
+    'Clear out old data from any previous analyses
+    Erase m_Segments
+
+    'Create an array of member segments, with one segment between each discontinuity
+    NumSegs = UBound(Discont) - LBound(Discont)
+    ReDim m_Segments(1 To NumSegs)
     
-    'Get the local end forces
-    Dim EndForces As Matrix
-    Set EndForces = LocalForces
+    'Get the member local end forces, local fixed end reactions, and local displacements
+    Dim EndForces As Matrix, FE_Rxns As Matrix, EndDisp As Matrix
+    Set EndForces = LocalForces(ComboName)
+    Set FE_Rxns = LocalFER_Unc(ComboName)
+    Set EndDisp = LocalDisp(ComboName)
     
-    'Calculate the rotation and deflection at the start of the member
+    'Initialize the first segment by calculating and storing the slope and deflection at the start of the member
     Dim M1 As Double, M2 As Double, FEM1 As Double, FEM2 As Double, Delta1 As Double, Delta2 As Double
-    M1 = LocalForces.GetValue(3, 1)
-    M2 = LocalForces.GetValue(6, 1)
-    FEM1 = m_FER.GetValue(3, 1)
-    FEM2 = m_FER.GetValue(6, 1)
-    Delta1 = LocalDisp.GetValue(2, 1)
-    Delta2 = LocalDisp.GetValue(5, 1)
-    m_Segments(1).theta1 = 1 / 3 * ((M1 - FEM1) * Length / (m_E * m_I) - (M2 - FEM2) * Length / (2 * m_E * m_I) + 3 * (Delta2 - Delta1) / Length)
+    M1 = EndForces.GetValue(3, 1)
+    M2 = EndForces.GetValue(6, 1)
+    FEM1 = FE_Rxns.GetValue(3, 1)
+    FEM2 = FE_Rxns.GetValue(6, 1)
+    Delta1 = EndDisp.GetValue(2, 1)
+    Delta2 = EndDisp.GetValue(5, 1)
     m_Segments(1).Delta1 = Delta1
+    m_Segments(1).theta1 = 1 / 3 * ((M1 - FEM1) * Length / (Elasticity * Inertia) - (M2 - FEM2) * Length / (2 * Elasticity * Inertia) + 3 * (Delta2 - Delta1) / Length)
     
-    'Step through each segment
-    For i = 1 To m_NumSegs
+    'TODO:
+    'Once axial deflections have been added to the `Segment` class, uncomment the next line
+    'm_Segments(1).Delta_x1 = EndDisp(1, 1)
+
+    'Declare variables used in the loops below
+    Dim j As Long
+    Dim P As Double, w1 As Double, w2 As Double
+    Dim x As Double, x1 As Double, x2 As Double
+    Dim Direction As String
+    Dim Factor As Double
+
+    'Add loads to each segment
+    Dim LoadCase As Variant
+    For i = 1 To NumSegs
     
         'Determine the starting and ending points of the segment
         m_Segments(i).SegStart = Discont(i)
         m_Segments(i).SegEnd = Discont(i + 1)
         
-        'Determine the segment start point
-        x = Round(m_Segments(i).SegStart, 8)    'Starting point of the segment
+        'Store the rounded starting point of the segment in the variable `x` to simplify the expressions below
+        'It is easier to use `x` than `Round(m_Segments(i).SegStart, 8)` or `Round(Discont(i), 8)` every time
+        x = Round(m_Segments(i).SegStart, 8)
         
-        'Initialize loads on the segment
-        m_Segments(i).w1 = 0                'Initializing w1 to zero
-        m_Segments(i).w2 = 0                'Initializing w2 to zero
+        'Initialize the distirbuted loads on the segment to zero
+        m_Segments(i).w1 = 0  'Initializing w1 to zero
+        m_Segments(i).w2 = 0  'Initializing w2 to zero
         
-        'Initialize the rotation and deflection at the start of the segment
-        If i > 1 Then
-            m_Segments(i).theta1 = m_Segments(i - 1).Rotation(m_Segments(i - 1).Length, m_E * m_I)
-            m_Segments(i).Delta1 = m_Segments(i - 1).Deflection(m_Segments(i - 1).Length, m_E * m_I)
+        'Initialize the slope and displacement at the start of the segment
+        If i > 1 Then  'The first segment was already initialized prior to entering this `For` loop
+            m_Segments(i).theta1 = m_Segments(i - 1).Slope(m_Segments(i - 1).Length, Elasticity * Inertia)
+            m_Segments(i).Delta1 = m_Segments(i - 1).Deflection(m_Segments(i - 1).Length, Elasticity * Inertia)
         End If
         
-        'Add the beam end forces to the segment
-        m_Segments(i).p1 = EndForces.GetValue(1, 1)                             'Axial force at the start of the member
-        m_Segments(i).V1 = EndForces.GetValue(2, 1)                             'Shear at the start of the member
-        m_Segments(i).M1 = -EndForces.GetValue(3, 1) + m_Segments(i).V1 * x     'Moment due to shear and moment at the start of the member
+        'Add the effects of the beam end forces to the segment
+        m_Segments(i).p1 = EndForces.GetValue(1, 1)                                 'Axial force at the start of the member
+        m_Segments(i).V1 = EndForces.GetValue(2, 1)                                 'Shear at the start of the member
+        m_Segments(i).M1 = EndForces.GetValue(3, 1) - EndForces.GetValue(2, 1) * x  'Moment due to shear and moment at the start of the member
         
-        'Step through each load on the member
-        For j = 1 To m_Loads.NumRows
-            
-            'Find the parameters for the load
-            w1 = m_Loads.GetValue(j, 1)                  'Distributed load (transverse or axial) start magnitude
-            w2 = m_Loads.GetValue(j, 2)                  'Distributed load (transverse or axial) end magnitude
-            P = m_Loads.GetValue(j, 3)                   'Concentrated force
-            M = m_Loads.GetValue(j, 4)                   'Concentrated moment
-            x1 = Round(m_Loads.GetValue(j, 5), 8)        'Load start location
-            x2 = Round(m_Loads.GetValue(j, 6), 8)        'Load end location
-            Direction = m_Loads.GetValue(j, 7)           'Load direction ("Transverse" or "Axial")
-            
-            'Determine the load type
-            'Also, determine whether it affects (i.e. comes before or at the start of) segment "i"
-            
-            'Distributed loads
-            If (w1 <> 0 Or w2 <> 0) And Round(x, 8) >= Round(x1, 8) Then
-                
-                'Determine whether the load is actually on segment "i"
-                If Round(x, 8) < Round(x2, 8) Then
+        'Step through each load case in the specified load combination
+        For Each LoadCase In LoadCombos(ComboName).Factors.Keys()
+
+            'Get the load factor for this load case
+            Factor = LoadCombos(ComboName).Factors(LoadCase)
+
+            'Add the effects of point loads occuring prior to this segment
+            For j = 1 To m_PtLoads.NumRows
+
+                P = m_PtLoads.GetValue(j, 2) * Factor    'Note that P can either be a point load or a concentrated moment
+                x1 = Round(m_PtLoads.GetValue(j, 3), 8)  'Load location relative to the start of the member
+                Direction = m_PtLoads.GetValue(j, 1)     'Load direction ("Transverse", "Axial", or "Moment")
+
+                'Determine if the load affects this segment
+                If x1 <= x And LoadCase = m_PtLoads.GetValue(j, 4) Then
                     
-                    If Direction = "Transverse" Then
-                        'Break up the load and place it on the segment
-                        m_Segments(i).w1 = m_Segments(i).w1 + (w2 - w1) / (x2 - x1) * (x - x1) + w1
-                        m_Segments(i).w2 = m_Segments(i).w2 + (w2 - w1) / (x2 - x1) * (m_Segments(i).SegEnd - x1) + w1
-                    ElseIf Direction = "Axial" Then
-                        m_Segments(i).w1_Axial = m_Segments(i).w1_Axial + (w2 - w1) / (x2 - x1) * (x - x1) + w1
-                        m_Segments(i).w2_Axial = m_Segments(i).w2_Axial + (w2 - w1) / (x2 - x1) * (m_Segments(i).SegEnd - x1) + w1
+                    If Direction = "Axial" Then
+                        m_Segments(i).p1 = m_Segments(i).p1 + P
+                    ElseIf Direction = "Transverse" Then
+                        m_Segments(i).V1 = m_Segments(i).V1 + P
+                        m_Segments(i).M1 = m_Segments(i).M1 - P * (x - x1)
+                    ElseIf Direction = "Moment" Then
+                        m_Segments(i).M1 = m_Segments(i).M1 + P
                     End If
-                    
-                    'Prior to this next step "w2" and "x2" correspond to the end of the segment. We only want to sum the load effects
-                    'up to the start of the segment, so these values need adjustment before we sum the load.
-                    w2 = (w2 - w1) / (x2 - x1) * (x - x1) + w1
-                    x2 = x
-                    
-                End If
                 
-                If Direction = "Transverse" Then
-                    'Sum the load effects (due to the distributed load) up to the start of the segment
-                    m_Segments(i).V1 = m_Segments(i).V1 - (x2 - x1) * (w1 + w2) / 2
-                    m_Segments(i).M1 = m_Segments(i).M1 - (x1 - x2) * (2 * w1 * x1 + w1 * x2 + w2 * x1 - 3 * w1 * x + 2 * w2 * x2 - 3 * w2 * x) / 6
-                ElseIf Direction = "Axial" Then
-                    m_Segments(i).p1 = m_Segments(i).p1 + (x2 - x1) * (w1 + w2) / 2
-                End If
-                
-            'Point loads
-            ElseIf P <> 0 And Round(x, 8) >= Round(x1, 8) Then
-                
-                If Direction = "Transverse" Then
-                    'Find the shear and moment (due to the point load) at the start of the segment
-                    m_Segments(i).V1 = m_Segments(i).V1 - P
-                    m_Segments(i).M1 = m_Segments(i).M1 - P * (x - x1)
-                ElseIf Direction = "Axial" Then
-                    m_Segments(i).p1 = m_Segments(i).p1 + P
                 End If
             
-            'Moments
-            ElseIf M <> 0 And Round(x, 8) >= Round(x1, 8) Then
-                
-                'Find the moment (due to the applied moment) at the start of the segment
-                m_Segments(i).M1 = m_Segments(i).M1 - M
-                
-            End If
+            Next j
+
+            'Add the effects of distributed loads starting prior to this segment
+            For j = 1 To m_DistLoads.NumRows
             
-        Next j
-        
+                'Find the parameters for the load
+                w1 = m_DistLoads.GetValue(j, 2) * Factor   'Distributed load (transverse or axial) start magnitude
+                w2 = m_DistLoads.GetValue(j, 3) * Factor   'Distributed load (transverse or axial) end magnitude
+                x1 = Round(m_DistLoads.GetValue(j, 4), 8)  'Load start location
+                x2 = Round(m_DistLoads.GetValue(j, 5), 8)  'Load end location
+                Direction = m_DistLoads.GetValue(j, 1)     'Load direction ("Transverse" or "Axial")
+                
+                'Determine if the load affects this segment
+                If x1 <= x And LoadCase = m_DistLoads.GetValue(j, 6) Then
+
+                    If Direction = "Axial" Then
+                
+                        'Determine whether the load ends after the start of the segment
+                        If x2 > x Then
+
+                            'Break up the load and place it on the segment
+                            'Note that `w1` and `w2` are really axial loads here
+                            m_Segments(i).w1_Axial = m_Segments(i).w1_Axial + (w2 - w1) / (x2 - x1) * (x - x1) + w1
+                            m_Segments(i).w2_Axial = m_Segments(i).w2_Axial + (w2 - w1) / (x2 - x1) * (m_Segments(i).SegEnd - x1) + w1
+
+                            'Replace `w2` and `x2` with the values for the load at the start of the segment
+                            w2 = w1 + (w2 - w1) / (x2 - x1) * (x - x1)
+                            x2 = x
+                        
+                        End If
+
+                        'Sum the axial forces at the start of the segment
+                        m_Segments(i).p1 = m_Segments(i).p1 + (w1 + w2) / 2 * (x2 - x1)
+
+                    ElseIf Direction = "Transverse" Then
+
+                        'Determine whether the load ends after the start of the segment
+                        If x2 > Round(x, 8) Then
+
+                            'Break up the load and place it on the segment
+                            m_Segments(i).w1 = m_Segments(i).w1 + (w2 - w1) / (x2 - x1) * (m_Segments(i).SegStart - x1) + w1
+                            m_Segments(i).w2 = m_Segments(i).w2 + (w2 - w1) / (x2 - x1) * (m_Segments(i).SegEnd - x1) + w1
+
+                            'Replace `w2` and `x2` with the values for the load at the start of the segment
+                            w2 = w1 + (w2 - w1) / (x2 - x1) * (x - x1)
+                            x2 = x
+
+                        End If
+                        
+                        'Sum the shears and moments at the start of the segment
+                        m_Segments(i).V1 = m_Segments(i).V1 + (w1 + w2) / 2 * (x2 - x1)
+                        m_Segments(i).M1 = m_Segments(i).M1 - (x1 - x2) * (2 * w1 * x1 - 3 * w1 * x + w1 * x2 + w2 * x1 - 3 * w2 * x + 2 * w2 * x2) / 6
+                    
+                    End If
+                
+                End If
+            
+            Next j
+            
+        Next LoadCase
+            
     Next i
     
 End Sub
 
 'Returns the maximum axial force in the member
-Public Function Pmax() As Double
+Public Function Pmax(Optional ComboName As Variant = "Combo 1") As Double
     
     Dim i As Integer
     Dim Max As Double
     
+    'Segment the member if necessary
+    If m_SolvedCombo <> ComboName Then
+        Call SegmentMember(ComboName)
+        m_SolvedCombo = ComboName
+    End If
+    
     Max = m_Segments(1).p1
-    For i = 1 To m_NumSegs
+    For i = 1 To NumSegs
         If m_Segments(i).MaxAxial > Max Then
             Max = m_Segments(i).MaxAxial
         End If
     Next i
-    
-    Pmax = WorksheetFunction.Max(Max, LocalForces.GetValue(1, 1), -LocalForces.GetValue(4, 1))
+        
+    Dim LocalF As Matrix
+    Set LocalF = LocalForces(ComboName)
+    Pmax = WorksheetFunction.Max(Max, LocalF.GetValue(1, 1), -LocalF.GetValue(4, 1))
     
 End Function
 
 'Returns the minimum axial force in the member
-Public Function Pmin() As Double
+Public Function Pmin(Optional ComboName As Variant = "Combo 1") As Double
     
     Dim i As Integer
     Dim Min As Double
     
+    'Segment the member if necessary
+    If m_SolvedCombo <> ComboName Then
+        Call SegmentMember(ComboName)
+        m_SolvedCombo = ComboName
+    End If
+    
     Min = m_Segments(1).p1
-    For i = 1 To m_NumSegs
+    For i = 1 To NumSegs
         If m_Segments(i).MinAxial < Min Then
             Min = m_Segments(i).MinAxial
         End If
     Next i
-    
-    Pmin = WorksheetFunction.Min(Min, LocalForces.GetValue(1, 1), -LocalForces.GetValue(4, 1))
+        
+    Dim LocalF As Matrix
+    Set LocalF = LocalForces(ComboName)
+    Pmin = WorksheetFunction.Min(Min, LocalF.GetValue(1, 1), -LocalF.GetValue(4, 1))
     
 End Function
 
 'Returns the maximum shear in the member
-Public Function Vmax() As Double
+Public Function Vmax(Optional ComboName As Variant = "Combo 1") As Double
     
     Dim i As Integer
     Dim Max As Double
     
+    'Segment the member if necessary
+    If m_SolvedCombo <> ComboName Then
+        Call SegmentMember(ComboName)
+        m_SolvedCombo = ComboName
+    End If
+    
     Max = m_Segments(1).V1
-    For i = 1 To m_NumSegs
+    For i = 1 To NumSegs
         If m_Segments(i).MaxShear > Max Then
             Max = m_Segments(i).MaxShear
         End If
     Next i
-    
-    Vmax = WorksheetFunction.Max(Max, LocalForces.GetValue(2, 1), -LocalForces.GetValue(5, 1))
+        
+    Dim LocalF As Matrix
+    Set LocalF = LocalForces(ComboName)
+    Vmax = WorksheetFunction.Max(Max, LocalF.GetValue(2, 1), -LocalF.GetValue(5, 1))
     
 End Function
 
 'Returns the minimum shear in the member
-Public Function Vmin() As Double
+Public Function Vmin(Optional ComboName As Variant = "Combo 1") As Double
     
     Dim i As Integer
     Dim Min As Double
     
+    'Segment the member if necessary
+    If m_SolvedCombo <> ComboName Then
+        Call SegmentMember(ComboName)
+        m_SolvedCombo = ComboName
+    End If
+    
     Min = m_Segments(1).V1
-    For i = 1 To m_NumSegs
+    For i = 1 To NumSegs
         If m_Segments(i).MinShear < Min Then
             Min = m_Segments(i).MinShear
         End If
     Next i
-    
-    Vmin = WorksheetFunction.Min(Min, LocalForces.GetValue(2, 1), -LocalForces.GetValue(5, 1))
+        
+    Dim LocalF As Matrix
+    Set LocalF = LocalForces(ComboName)
+    Vmin = WorksheetFunction.Min(Min, LocalF.GetValue(2, 1), -LocalF.GetValue(5, 1))
     
 End Function
 
 'Returns the maximum moment in the member
-Public Function Mmax() As Double
+Public Function Mmax(Optional ComboName As Variant = "Combo 1") As Double
     
     Dim i As Integer
     Dim Max As Double
     
+    'Segment the member if necessary
+    If m_SolvedCombo <> ComboName Then
+        Call SegmentMember(ComboName)
+        m_SolvedCombo = ComboName
+    End If
+    
     Max = m_Segments(1).M1
-    For i = 1 To m_NumSegs
+    For i = 1 To NumSegs
         If m_Segments(i).MaxMoment > Max Then
             Max = m_Segments(i).MaxMoment
         End If
     Next i
     
-    Mmax = WorksheetFunction.Max(Max, -LocalForces.GetValue(3, 1), LocalForces.GetValue(6, 1))
+    Dim LocalF As Matrix
+    Set LocalF = LocalForces(ComboName)
+    Mmax = WorksheetFunction.Max(Max, LocalF.GetValue(3, 1), -LocalF.GetValue(6, 1))
     
 End Function
 
 'Returns the minimum moment in the member
-Public Function Mmin() As Double
+Public Function Mmin(Optional ComboName As Variant = "Combo 1") As Double
     
     Dim i As Integer
     Dim Min As Double
     
+    'Segment the member if necessary
+    If m_SolvedCombo <> ComboName Then
+        Call SegmentMember(ComboName)
+        m_SolvedCombo = ComboName
+    End If
+    
     Min = m_Segments(1).M1
-    For i = 1 To m_NumSegs
+    For i = 1 To NumSegs
         If m_Segments(i).MinMoment < Min Then
             Min = m_Segments(i).MinMoment
         End If
     Next i
     
-    Mmin = WorksheetFunction.Min(Min, -LocalForces.GetValue(3, 1), LocalForces.GetValue(6, 1))
+    Dim LocalF As Matrix
+    Set LocalF = LocalForces(ComboName)
+    Mmin = WorksheetFunction.Min(Min, LocalF.GetValue(3, 1), -LocalF.GetValue(6, 1))
     
 End Function
 
 'Returns the maximum displacement in the member
-Public Function MaxDisplacement() As Double
+Public Function MaxDisplacement(Optional ComboName As Variant = "Combo 1") As Double
     
     'Declare local variables
     Dim i As Integer, Delta As Double
+    
+    'Segment the member if necessary
+    If m_SolvedCombo <> ComboName Then
+        Call SegmentMember(ComboName)
+        m_SolvedCombo = ComboName
+    End If
     
     'Initialize the maximum deflection to zero
     MaxDisplacement = 0
     
     'Step through each beam segment in the member
-    For i = 1 To m_NumSegs
+    For i = 1 To NumSegs
         
         'Get the maximum deflection in the segment
-        Delta = m_Segments(i).MaxDeflection(m_E * m_I)
+        Delta = m_Segments(i).MaxDeflection(Elasticity * Inertia)
         
         'Save the largest value
         If Delta > MaxDisplacement Then
@@ -711,19 +789,25 @@ Public Function MaxDisplacement() As Double
 End Function
 
 'Returns the minimum displacement in the member
-Public Function MinDisplacement() As Double
+Public Function MinDisplacement(Optional ComboName As Variant = "Combo 1") As Double
     
     'Declare local variables
     Dim i As Integer, Delta As Double
+    
+    'Segment the member if necessary
+    If m_SolvedCombo <> ComboName Then
+        Call SegmentMember(ComboName)
+        m_SolvedCombo = ComboName
+    End If
     
     'Initialize the maximum deflection to zero
     MinDisplacement = 0
     
     'Step through each beam segment in the member
-    For i = 1 To m_NumSegs
+    For i = 1 To NumSegs
         
         'Get the minimum deflection in the segment
-        Delta = m_Segments(i).MinDeflection(m_E * m_I)
+        Delta = m_Segments(i).MinDeflection(Elasticity * Inertia)
         
         'Save the largest value
         If Delta < MinDisplacement Then
@@ -735,15 +819,21 @@ Public Function MinDisplacement() As Double
 End Function
 
 'Returns the axial force at a location on the member
-Public Function Axial(x As Double) As Double
+Public Function Axial(x As Double, Optional ComboName As Variant = "Combo 1") As Double
     
     'Declare local variables
     Dim i As Integer
     
+    'Segment the member if necessary
+    If m_SolvedCombo <> ComboName Then
+        Call SegmentMember(ComboName)
+        m_SolvedCombo = ComboName
+    End If
+    
     If Round(x, 8) = 0 Then
-        Axial = LocalForces.GetValue(1, 1)
+        Axial = LocalForces(ComboName).GetValue(1, 1)
     ElseIf Round(x, 8) = Round(Length, 8) Then
-        Axial = -LocalForces.GetValue(4, 1)
+        Axial = -LocalForces(ComboName).GetValue(4, 1)
     Else
         'Find the segment the location falls within
         i = 1
@@ -757,15 +847,21 @@ Public Function Axial(x As Double) As Double
 End Function
 
 'Returns the shear force at a location on the member
-Public Function Shear(x As Double) As Double
+Public Function Shear(x As Double, Optional ComboName As Variant = "Combo 1") As Double
     
     'Declare local variables
     Dim i As Integer
     
+    'Segment the member if necessary
+    If m_SolvedCombo <> ComboName Then
+        Call SegmentMember(ComboName)
+        m_SolvedCombo = ComboName
+    End If
+    
     If Round(x, 8) = 0 Then
-        Shear = LocalForces.GetValue(2, 1)
+        Shear = LocalForces(ComboName).GetValue(2, 1)
     ElseIf Round(x, 8) = Round(Length, 8) Then
-        Shear = -LocalForces.GetValue(5, 1)
+        Shear = -LocalForces(ComboName).GetValue(5, 1)
     Else
         'Find the segment the location falls within
         i = 1
@@ -779,15 +875,21 @@ Public Function Shear(x As Double) As Double
 End Function
 
 'Returns the moment at a location on the member
-Public Function Moment(x As Double) As Double
+Public Function Moment(x As Double, Optional ComboName As Variant = "Combo 1") As Double
     
     'Declare local variables
     Dim i As Integer
     
+    'Segment the member if necessary
+    If m_SolvedCombo <> ComboName Then
+        Call SegmentMember(ComboName)
+        m_SolvedCombo = ComboName
+    End If
+    
     If Round(x, 8) = 0 Then
-        Moment = -LocalForces.GetValue(3, 1)
+        Moment = LocalForces(ComboName).GetValue(3, 1)
     ElseIf Round(x, 8) = Round(Length, 8) Then
-        Moment = LocalForces.GetValue(6, 1)
+        Moment = -LocalForces(ComboName).GetValue(6, 1)
     Else
         'Find the segment that "x" falls on
         i = 1
@@ -801,7 +903,13 @@ Public Function Moment(x As Double) As Double
 End Function
 
 'Returns the deflection at a location on the member
-Public Function Deflection(x As Double) As Double
+Public Function Deflection(x As Double, Optional ComboName As Variant = "Combo 1") As Double
+    
+    'Segment the member if necessary
+    If m_SolvedCombo <> ComboName Then
+        Call SegmentMember(ComboName)
+        m_SolvedCombo = ComboName
+    End If
     
     'Find the segment 'x' falls on
     Dim i As Integer
@@ -810,6 +918,6 @@ Public Function Deflection(x As Double) As Double
         i = i + 1
     Wend
     
-    Deflection = m_Segments(i).Deflection(x - m_Segments(i).SegStart, m_E * m_I)
+    Deflection = m_Segments(i).Deflection(x - m_Segments(i).SegStart, Elasticity * Inertia)
     
 End Function
